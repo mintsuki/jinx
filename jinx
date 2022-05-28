@@ -45,7 +45,7 @@ build_hostdeps() {
     for hostdep in ${hostdeps} ${hostrundeps}; do
         [ -f "${base_dir}"/host-recipes/${hostdep} ] || die "missing host dependency '${hostdep}' for recipe '${name}'"
 
-        [ -f "${base_dir}"/host-builds/${hostdep}.built ] && continue
+        [ -f "${base_dir}"/host-builds/${hostdep}.installed ] && continue
 
         cd "${base_dir}" && "${script}" host-build ${hostdep}
     done
@@ -55,7 +55,7 @@ build_deps() {
     for dep in ${deps}; do
         [ -f "${base_dir}"/recipes/${dep} ] || die "missing dependency '${dep}' for recipe '${name}'"
 
-        [ -f "${base_dir}"/builds/${dep}.built ] && continue
+        [ -f "${base_dir}"/builds/${dep}.installed ] && continue
 
         cd "${base_dir}" && "${script}" build ${dep}
     done
@@ -319,6 +319,8 @@ do_source() {
 do_host_pkg() {
     source "${base_dir}"/host-recipes/$1
 
+    [ -f "${base_dir}"/host-builds/${name}.installed ] && return
+
     echo "* building host package: $name"
 
     do_source
@@ -334,6 +336,8 @@ do_host_pkg() {
 
 do_pkg() {
     source "${base_dir}"/recipes/$1
+
+    [ -f "${base_dir}"/builds/${name}.installed ] && return
 
     echo "* building package: $name"
 
