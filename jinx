@@ -143,10 +143,15 @@ destroy_container() {
 }
 
 do_git_fetch() {
+    source_dir="${base_dir}"/sources/${name}
+    [ -d "${source_dir}" ] && return
     git clone ${clone_url} --branch=${tag} --depth=1 "${base_dir}"/sources/${name}
 }
 
 do_tarball_fetch() {
+    source_dir="${base_dir}"/sources/${name}
+    [ -d "${source_dir}" ] && return
+
     local extract_dir="$(mktemp -d)"
     local tarball_path="${base_dir}"/sources/"$(basename "${tarball_url}")"
 
@@ -161,8 +166,6 @@ do_tarball_fetch() {
 }
 
 do_fetch() {
-    [ -d "${base_dir}"/sources/${name} ] && return
-
     mkdir -p "${base_dir}"/sources
 
     case ${source_method} in
@@ -181,7 +184,7 @@ do_patch() {
     [ -d "${base_dir}"/patches/${name} ] || return 0
     [ -f "${base_dir}"/sources/${name}.patched ] && return
 
-    cd "${base_dir}"/sources/${name}
+    cd "${source_dir}"
 
     for patch in $(ls "${base_dir}"/patches/${name}); do
         patch -p1 < "${base_dir}"/patches/${name}/${patch}
@@ -195,7 +198,10 @@ do_regenerate() {
 
     [ -f "${base_dir}"/sources/${name}.regenerated ] && return
 
-    cd "${base_dir}"/sources/${name}
+    eval $(grep source_dir < "${base_dir}"/source-recipes/${name})
+    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${name}
+
+    cd "${source_dir}"
 
     regenerate
 
@@ -210,7 +216,9 @@ do_configure_host() {
     mkdir -p "${base_dir}"/host-builds/${name}
     cd "${base_dir}"/host-builds/${name}
 
-    source_dir="${base_dir}"/sources/${from_source}
+    eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
+    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+
     prefix="/usr/local"
     sysroot_dir="/sysroot"
     configure
@@ -225,7 +233,9 @@ do_build_host() {
 
     cd "${base_dir}"/host-builds/${name}
 
-    source_dir="${base_dir}"/sources/${from_source}
+    eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
+    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+
     prefix="/usr/local"
     sysroot_dir="/sysroot"
     build
@@ -245,7 +255,9 @@ do_install_host() {
 
     cd "${base_dir}"/host-builds/${name}
 
-    source_dir="${base_dir}"/sources/${from_source}
+    eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
+    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+
     prefix="/usr/local"
     sysroot_dir="/sysroot"
     install
@@ -261,7 +273,9 @@ do_configure() {
     mkdir -p "${base_dir}"/builds/${name}
     cd "${base_dir}"/builds/${name}
 
-    source_dir="${base_dir}"/sources/${from_source}
+    eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
+    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+
     prefix="/usr"
     sysroot_dir="/sysroot"
     configure
@@ -276,7 +290,9 @@ do_build() {
 
     cd "${base_dir}"/builds/${name}
 
-    source_dir="${base_dir}"/sources/${from_source}
+    eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
+    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+
     prefix="/usr"
     sysroot_dir="/sysroot"
     build
@@ -296,7 +312,9 @@ do_install() {
 
     cd "${base_dir}"/builds/${name}
 
-    source_dir="${base_dir}"/sources/${from_source}
+    eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
+    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+
     prefix="/usr"
     sysroot_dir="/sysroot"
     install
