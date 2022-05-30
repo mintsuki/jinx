@@ -137,6 +137,36 @@ FROM ${container_image}
 RUN pacman -Syu --noconfirm
 EOF
 
+    if ! [ -z "${imagedeps_aur}" ]; then
+        imagedeps_aur="$(echo "${imagedeps_aur}" | xargs -n1 | sort -u | xargs)"
+
+        echo "RUN pacman --needed --noconfirm -S base-devel git sudo" >> "${dockerfile}"
+
+        echo "RUN useradd -m auruser" >> "${dockerfile}"
+        echo "RUN echo 'auruser:auruser' | chpasswd" >> "${dockerfile}"
+        echo "RUN groupadd sudo" >> "${dockerfile}"
+        echo "RUN usermod -aG sudo auruser" >> "${dockerfile}"
+        echo "RUN sed -i 's/# %sudo\tALL=(ALL:ALL) ALL/%sudo ALL=(ALL:ALL) NOPASSWD: ALL/g' /etc/sudoers" >> "${dockerfile}"
+
+        echo "USER auruser" >> "${dockerfile}"
+        echo "WORKDIR /home/auruser" >> "${dockerfile}"
+
+        echo "RUN git clone https://aur.archlinux.org/aura-bin.git" >> "${dockerfile}"
+        echo "RUN cd aura-bin && makepkg -si --noconfirm" >> "${dockerfile}"
+
+        for imagedep_aur in ${imagedeps_aur}; do
+            echo "RUN sudo aura -Aax ${imagedep_aur} --noconfirm" >> "${dockerfile}"
+        done
+
+        echo "USER root" >> "${dockerfile}"
+
+        ( echo "${imagedeps_aur}" | grep aura ) || \
+            echo "RUN pacman -Rs aura-bin --noconfirm || true" >> "${dockerfile}"
+
+        echo "RUN pacman -Rs git sudo --noconfirm || true" >> "${dockerfile}"
+        echo "RUN pacman -Qdtq | pacman -Rs - --noconfirm || true" >> "${dockerfile}"
+    fi
+
     for imagedep in ${imagedeps}; do
         echo "RUN pacman --needed --noconfirm -S ${imagedep}" >> "${dockerfile}"
     done
