@@ -26,7 +26,7 @@
 set -e
 
 common_cflags="-O2 -pipe"
-container_image="archlinux:base-devel"
+container_image="archlinux:latest"
 parallelism="$(nproc)"
 
 base_dir="$(pwd -P)"
@@ -124,6 +124,24 @@ prepare_container() {
     done
 
     rm -f "${hostdeps_file}" "${deps_file}"
+
+    imagedeps="$(echo "${imagedeps}" | xargs -n1 | sort -u | xargs)"
+
+    echo "* creating container with packages: ${imagedeps}..."
+
+    dockerfile_dir="$(mktemp -d)"
+    dockerfile="${dockerfile_dir}/Dockerfile"
+    cat >"${dockerfile}" <<EOF
+FROM ${container_image}
+
+RUN pacman -Syu --noconfirm
+EOF
+
+    for imagedep in ${imagedeps}; do
+        echo "RUN pacman --needed --noconfirm -S ${imagedep}" >> "${dockerfile}"
+    done
+
+    echo 'CMD ["bash"]' >> "${dockerfile}"
 }
 
 run_in_container() {
@@ -134,12 +152,12 @@ run_in_container() {
         -v "${script_dir}":/bs \
         -v "${base_dir}":/base_dir \
         -w /base_dir \
-        "${container_image}" \
+        $(docker build -q "${dockerfile_dir}") \
         /bs/${script_name} $1 $2 $3 $4 $5
 }
 
 destroy_container() {
-    rm -rf "${container_pkgs}" "${sysroot_dir}"
+    rm -rf "${container_pkgs}" "${sysroot_dir}" "${dockerfile_dir}"
 }
 
 do_git_fetch() {
