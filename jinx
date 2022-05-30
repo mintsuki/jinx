@@ -160,11 +160,13 @@ EOF
 
         echo "USER root" >> "${dockerfile}"
 
-        ( echo "${imagedeps_aur}" | grep aura ) || \
+        ( echo "${imagedeps_aur}" | grep aura-bin ) || \
             echo "RUN pacman -Rs aura-bin --noconfirm || true" >> "${dockerfile}"
 
         echo "RUN pacman -Rs git sudo --noconfirm || true" >> "${dockerfile}"
         echo "RUN pacman -Qdtq | pacman -Rs - --noconfirm || true" >> "${dockerfile}"
+
+        echo "RUN userdel -r auruser" >> "${dockerfile}"
     fi
 
     for imagedep in ${imagedeps}; do
