@@ -197,7 +197,12 @@ destroy_container() {
 do_git_fetch() {
     source_dir="${base_dir}"/sources/${name}
     [ -d "${source_dir}" ] && return
-    git clone ${clone_url} --branch=${tag} --depth=1 "${base_dir}"/sources/${name}
+    if [ -z "${commit}" ]; then
+        git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
+        ( cd "${base_dir}"/sources/${name} && git checkout ${commit} )
+    else
+        git clone ${clone_url} --branch=${tag} --depth=1 "${base_dir}"/sources/${name}
+    fi
 }
 
 do_tarball_fetch() {
@@ -212,7 +217,10 @@ do_tarball_fetch() {
     cd "${extract_dir}"
     tar -xf "${tarball_path}"
 
-    mv "${extract_dir}"/* "${base_dir}"/sources/${name}
+    mv "${extract_dir}"/* "${base_dir}"/sources/${name} || (
+        mkdir -p "${base_dir}"/sources/${name}
+        mv "${extract_dir}"/* "${base_dir}"/sources/${name}/
+    )
 
     rm -rf "${extract_dir}" "${tarball_path}"
 }
@@ -325,6 +333,9 @@ do_install_host() {
 
     prefix="/usr/local"
     sysroot_dir="/sysroot"
+
+    mkdir -p "${dest_dir}${prefix}"
+
     install
 
     touch "${base_dir}"/host-builds/${name}.installed
@@ -394,6 +405,9 @@ do_install() {
 
     prefix="/usr"
     sysroot_dir="/sysroot"
+
+    mkdir -p "${dest_dir}${prefix}"
+
     install
 
     touch "${base_dir}"/builds/${name}.installed
