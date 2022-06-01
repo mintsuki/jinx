@@ -459,11 +459,22 @@ do_pkg() {
 
 do_all() {
     for pkg in $(ls "${base_dir}"/recipes); do
-        cd "${base_dir}" && "${script}" build $pkg
+        cd "${base_dir}" && "${script}" build ${pkg}
+    done
+}
+
+do_sysroot() {
+    mkdir -p "${base_dir}"/sysroot
+    for pkg in $(ls "${base_dir}"/pkgs); do
+        echo "* copying ${pkg} to sysroot..."
+        cp -r "${base_dir}"/pkgs/${pkg}/. "${base_dir}"/sysroot/
     done
 }
 
 case "$1" in
+    sysroot)
+        do_sysroot
+        ;;
     internal-regenerate)
         do_regenerate "$2"
         ;;
