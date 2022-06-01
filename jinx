@@ -135,7 +135,7 @@ prepare_container() {
 FROM ${container_image}
 
 RUN pacman -Syu --noconfirm
-RUN pacman --needed --noconfirm -S diffutils gettext m4 make patch perl texinfo which
+RUN pacman --needed --noconfirm -S bison diffutils flex gettext m4 make patch perl texinfo which
 RUN cp -r /usr/bin/core_perl/* /usr/bin/
 EOF
 
