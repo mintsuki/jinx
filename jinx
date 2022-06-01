@@ -70,7 +70,7 @@ get_hostdeps_file_run() {
     done
 
     for hostdep in ${deps_to_do}; do
-        ( . "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
+        ( source "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
     done
 }
 
@@ -83,7 +83,7 @@ get_hostdeps_file() {
     done
 
     for hostdep in ${deps_to_do}; do
-        ( . "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
+        ( source "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
     done
 }
 
@@ -96,7 +96,7 @@ get_deps_file() {
     done
 
     for dep in ${deps_to_do}; do
-        ( . "${base_dir}"/recipes/${dep} && get_deps_file )
+        ( source "${base_dir}"/recipes/${dep} && get_deps_file )
     done
 }
 
@@ -135,12 +135,14 @@ prepare_container() {
 FROM ${container_image}
 
 RUN pacman -Syu --noconfirm
+RUN pacman --needed --noconfirm -S diffutils gettext m4 make patch perl texinfo which
+RUN cp -r /usr/bin/core_perl/* /usr/bin/
 EOF
 
     if ! [ -z "${imagedeps_aur}" ]; then
         imagedeps_aur="$(echo "${imagedeps_aur}" | xargs -n1 | sort -u | xargs)"
 
-        echo "RUN pacman --needed --noconfirm -S base-devel git sudo" >> "${dockerfile}"
+        echo "RUN pacman --needed --noconfirm -S git sudo" >> "${dockerfile}"
 
         echo "RUN useradd -m auruser" >> "${dockerfile}"
         echo "RUN echo 'auruser:auruser' | chpasswd" >> "${dockerfile}"
@@ -160,7 +162,7 @@ EOF
 
         echo "USER root" >> "${dockerfile}"
 
-        ( echo "${imagedeps_aur}" | grep aura-bin ) || \
+        ( echo "${imagedeps_aur}" | grep aura-bin &>/dev/null ) || \
             echo "RUN pacman -Rs aura-bin --noconfirm || true" >> "${dockerfile}"
 
         echo "RUN pacman -Rs git sudo --noconfirm || true" >> "${dockerfile}"
@@ -375,6 +377,16 @@ do_install() {
 do_source() {
     [ -f "${base_dir}"/sources/${from_source}.regenerated ] || (
         source "${base_dir}"/source-recipes/${from_source}
+
+        grep 'imagedeps=' "${base_dir}"/source-recipes/${from_source} &>/dev/null || \
+            imagedeps=""
+        grep 'hostdeps=' "${base_dir}"/source-recipes/${from_source} &>/dev/null || \
+            hostdeps=""
+        grep 'hostrundeps=' "${base_dir}"/source-recipes/${from_source} &>/dev/null || \
+            hostrundeps=""
+        grep 'deps=' "${base_dir}"/source-recipes/${from_source} &>/dev/null || \
+            deps=""
+
         do_fetch
         do_patch
 
