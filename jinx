@@ -25,13 +25,19 @@
 
 set -e
 
-parallelism="$(nproc)"
+parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 
 base_dir="$(pwd -P)"
-script_dir="$(dirname "$0")"
-test -z "$script_dir" && script_dir=.
-script_dir="$(cd "${script_dir}" && pwd -P)"
 script_name="$(basename "$0")"
+script_dir="$(dirname "$0")"
+if [ "$script_dir" = "." ] || [ -z "$script_dir" ]; then
+    if echo "$0" | grep "/" &>/dev/null; then
+        script_dir=.
+    else
+        script_dir="$(dirname $(which "${script_name}"))"
+    fi
+fi
+script_dir="$(cd "${script_dir}" && pwd -P)"
 script="${script_dir}/${script_name}"
 
 [ -f "${base_dir}"/jinx-config ] && source "${base_dir}"/jinx-config
@@ -40,6 +46,13 @@ die() {
     echo $1
     exit 1
 }
+
+make_temp() {
+    tmp="$(mktemp $1)"
+    temp_collect="${temp_collect} ${tmp}"
+}
+
+trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
 
 build_hostdeps() {
     for hostdep in ${hostdeps} ${hostrundeps}; do
@@ -101,10 +114,10 @@ get_deps_file() {
 }
 
 prepare_container() {
-    hostdeps_file="$(mktemp)"
-    printf "" > "${hostdeps_file}"
-    deps_file="$(mktemp)"
-    printf "" > "${deps_file}"
+    make_temp
+    hostdeps_file="${tmp}"
+    make_temp
+    deps_file="${tmp}"
 
     build_hostdeps
     build_deps
@@ -112,8 +125,10 @@ prepare_container() {
     get_hostdeps_file
     get_deps_file
 
-    container_pkgs="$(mktemp -d)"
-    sysroot_dir="$(mktemp -d)"
+    make_temp -d
+    container_pkgs="${tmp}"
+    make_temp -d
+    sysroot_dir="${tmp}"
 
     for hostdep in $(cat "${hostdeps_file}"); do
         cp -r "${base_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
@@ -129,7 +144,8 @@ prepare_container() {
 
     echo "* creating container..."
 
-    dockerfile_dir="$(mktemp -d)"
+    make_temp -d
+    dockerfile_dir="${tmp}"
     dockerfile="${dockerfile_dir}/Dockerfile"
     cat >"${dockerfile}" <<EOF
 FROM archlinux:latest
@@ -209,7 +225,8 @@ do_tarball_fetch() {
     source_dir="${base_dir}"/sources/${name}
     [ -d "${source_dir}" ] && return
 
-    local extract_dir="$(mktemp -d)"
+    make_temp -d
+    local extract_dir="${tmp}"
     local tarball_path="${base_dir}"/sources/"$(basename "${tarball_url}")"
 
     curl -o "${tarball_path}" "${tarball_url}"
