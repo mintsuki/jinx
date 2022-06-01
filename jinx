@@ -142,7 +142,7 @@ EOF
     if ! [ -z "${imagedeps_aur}" ]; then
         imagedeps_aur="$(echo "${imagedeps_aur}" | xargs -n1 | sort -u | xargs)"
 
-        echo "RUN pacman --needed --noconfirm -S git sudo" >> "${dockerfile}"
+        echo "RUN pacman --needed --noconfirm -S git sudo fakeroot gcc binutils" >> "${dockerfile}"
 
         echo "RUN useradd -m auruser" >> "${dockerfile}"
         echo "RUN echo 'auruser:auruser' | chpasswd" >> "${dockerfile}"
@@ -157,7 +157,7 @@ EOF
         echo "RUN cd aura-bin && makepkg -si --noconfirm" >> "${dockerfile}"
 
         for imagedep_aur in ${imagedeps_aur}; do
-            echo "RUN sudo aura -Aax ${imagedep_aur} --noconfirm" >> "${dockerfile}"
+            echo "RUN yes | sudo aura -Aax ${imagedep_aur}" >> "${dockerfile}"
         done
 
         echo "USER root" >> "${dockerfile}"
@@ -165,7 +165,7 @@ EOF
         ( echo "${imagedeps_aur}" | grep aura-bin &>/dev/null ) || \
             echo "RUN pacman -Rs aura-bin --noconfirm || true" >> "${dockerfile}"
 
-        echo "RUN pacman -Rs git sudo --noconfirm || true" >> "${dockerfile}"
+        echo "RUN pacman -Rs git sudo fakeroot gcc binutils --noconfirm || true" >> "${dockerfile}"
         echo "RUN pacman -Qdtq | pacman -Rs - --noconfirm || true" >> "${dockerfile}"
 
         echo "RUN userdel -r auruser" >> "${dockerfile}"
@@ -220,6 +220,7 @@ do_tarball_fetch() {
 do_fetch() {
     mkdir -p "${base_dir}"/sources
 
+    source_dir="${base_dir}"/"${source_dir}"
     case ${source_method} in
         tarball)
             do_tarball_fetch
@@ -269,7 +270,11 @@ do_configure_host() {
     cd "${base_dir}"/host-builds/${name}
 
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
-    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+    if [ -z "${source_dir}" ]; then
+        source_dir="${base_dir}"/sources/${from_source}
+    else
+        source_dir="${base_dir}"/"${source_dir}"
+    fi
 
     prefix="/usr/local"
     sysroot_dir="/sysroot"
@@ -286,7 +291,11 @@ do_build_host() {
     cd "${base_dir}"/host-builds/${name}
 
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
-    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+    if [ -z "${source_dir}" ]; then
+        source_dir="${base_dir}"/sources/${from_source}
+    else
+        source_dir="${base_dir}"/"${source_dir}"
+    fi
 
     prefix="/usr/local"
     sysroot_dir="/sysroot"
@@ -308,7 +317,11 @@ do_install_host() {
     cd "${base_dir}"/host-builds/${name}
 
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
-    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+    if [ -z "${source_dir}" ]; then
+        source_dir="${base_dir}"/sources/${from_source}
+    else
+        source_dir="${base_dir}"/"${source_dir}"
+    fi
 
     prefix="/usr/local"
     sysroot_dir="/sysroot"
@@ -326,7 +339,11 @@ do_configure() {
     cd "${base_dir}"/builds/${name}
 
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
-    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+    if [ -z "${source_dir}" ]; then
+        source_dir="${base_dir}"/sources/${from_source}
+    else
+        source_dir="${base_dir}"/"${source_dir}"
+    fi
 
     prefix="/usr"
     sysroot_dir="/sysroot"
@@ -343,7 +360,11 @@ do_build() {
     cd "${base_dir}"/builds/${name}
 
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
-    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+    if [ -z "${source_dir}" ]; then
+        source_dir="${base_dir}"/sources/${from_source}
+    else
+        source_dir="${base_dir}"/"${source_dir}"
+    fi
 
     prefix="/usr"
     sysroot_dir="/sysroot"
@@ -365,7 +386,11 @@ do_install() {
     cd "${base_dir}"/builds/${name}
 
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
-    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${from_source}
+    if [ -z "${source_dir}" ]; then
+        source_dir="${base_dir}"/sources/${from_source}
+    else
+        source_dir="${base_dir}"/"${source_dir}"
+    fi
 
     prefix="/usr"
     sysroot_dir="/sysroot"
