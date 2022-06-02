@@ -47,17 +47,13 @@ die() {
     exit 1
 }
 
+temp_collect=""
+trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
+
 make_temp() {
     tmp="$(mktemp $1)"
     temp_collect="${temp_collect} ${tmp}"
 }
-
-prepare_nest() {
-    temp_collect=""
-    trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
-}
-
-prepare_nest
 
 build_hostdeps() {
     for hostdep in ${hostdeps} ${hostrundeps}; do
@@ -65,7 +61,7 @@ build_hostdeps() {
 
         [ -f "${base_dir}"/host-builds/${hostdep}.installed ] && continue
 
-        cd "${base_dir}" && "${script}" host-build ${hostdep}
+        "${script}" host-build ${hostdep}
     done
 }
 
@@ -75,7 +71,7 @@ build_deps() {
 
         [ -f "${base_dir}"/builds/${dep}.installed ] && continue
 
-        cd "${base_dir}" && "${script}" build ${dep}
+        "${script}" build ${dep}
     done
 }
 
@@ -88,7 +84,7 @@ get_hostdeps_file_run() {
     done
 
     for hostdep in ${deps_to_do}; do
-        ( prepare_nest; source "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
+        "${script}" internal-get-hostdeps-file-run ${hostdep} "${hostdeps_file}"
     done
 }
 
@@ -101,7 +97,7 @@ get_hostdeps_file() {
     done
 
     for hostdep in ${deps_to_do}; do
-        ( prepare_nest; source "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
+        "${script}" internal-get-hostdeps-file-run ${hostdep} "${hostdeps_file}"
     done
 }
 
@@ -114,7 +110,7 @@ get_deps_file() {
     done
 
     for dep in ${deps_to_do}; do
-        ( prepare_nest; source "${base_dir}"/recipes/${dep} && get_deps_file )
+        "${script}" internal-get-deps-file ${dep} "${deps_file}"
     done
 }
 
@@ -252,8 +248,7 @@ do_tarball_fetch() {
 
     curl -o "${tarball_path}" "${tarball_url}"
 
-    cd "${extract_dir}"
-    tar -xf "${tarball_path}"
+    ( cd "${extract_dir}" && tar -xf "${tarball_path}" )
 
     mv "${extract_dir}"/* "${base_dir}"/sources/${name} || (
         mkdir -p "${base_dir}"/sources/${name}
@@ -292,6 +287,8 @@ do_patch() {
         patch -p1 < "${base_dir}"/patches/${name}/${patch}
     done
 
+    cd "${base_dir}"
+
     touch "${base_dir}"/sources/${name}.patched
 }
 
@@ -304,8 +301,8 @@ do_regenerate() {
     [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${name}
 
     cd "${source_dir}"
-
     regenerate
+    cd "${base_dir}"
 
     touch "${base_dir}"/sources/${name}.regenerated
 }
@@ -316,7 +313,6 @@ do_configure_host() {
     [ -f "${base_dir}"/host-builds/${name}.configured ] && return
 
     mkdir -p "${base_dir}"/host-builds/${name}
-    cd "${base_dir}"/host-builds/${name}
 
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
@@ -327,7 +323,10 @@ do_configure_host() {
 
     prefix="/usr/local"
     sysroot_dir="/sysroot"
+
+    cd "${base_dir}"/host-builds/${name}
     configure
+    cd "${base_dir}"
 
     touch "${base_dir}"/host-builds/${name}.configured
 }
@@ -337,8 +336,6 @@ do_build_host() {
 
     [ -f "${base_dir}"/host-builds/${name}.built ] && return
 
-    cd "${base_dir}"/host-builds/${name}
-
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
@@ -348,7 +345,10 @@ do_build_host() {
 
     prefix="/usr/local"
     sysroot_dir="/sysroot"
+
+    cd "${base_dir}"/host-builds/${name}
     build
+    cd "${base_dir}"
 
     touch "${base_dir}"/host-builds/${name}.built
 }
@@ -363,8 +363,6 @@ do_install_host() {
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
 
-    cd "${base_dir}"/host-builds/${name}
-
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
@@ -377,7 +375,9 @@ do_install_host() {
 
     mkdir -p "${dest_dir}${prefix}"
 
+    cd "${base_dir}"/host-builds/${name}
     install
+    cd "${base_dir}"
 
     touch "${base_dir}"/host-builds/${name}.installed
 }
@@ -388,7 +388,6 @@ do_configure() {
     [ -f "${base_dir}"/builds/${name}.configured ] && return
 
     mkdir -p "${base_dir}"/builds/${name}
-    cd "${base_dir}"/builds/${name}
 
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
@@ -399,7 +398,10 @@ do_configure() {
 
     prefix="/usr"
     sysroot_dir="/sysroot"
+
+    cd "${base_dir}"/builds/${name}
     configure
+    cd "${base_dir}"
 
     touch "${base_dir}"/builds/${name}.configured
 }
@@ -409,8 +411,6 @@ do_build() {
 
     [ -f "${base_dir}"/builds/${name}.built ] && return
 
-    cd "${base_dir}"/builds/${name}
-
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
@@ -420,7 +420,10 @@ do_build() {
 
     prefix="/usr"
     sysroot_dir="/sysroot"
+
+    cd "${base_dir}"/builds/${name}
     build
+    cd "${base_dir}"
 
     touch "${base_dir}"/builds/${name}.built
 }
@@ -435,8 +438,6 @@ do_install() {
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
 
-    cd "${base_dir}"/builds/${name}
-
     eval $(grep source_dir < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
@@ -449,33 +450,22 @@ do_install() {
 
     mkdir -p "${dest_dir}${prefix}"
 
+    cd "${base_dir}"/builds/${name}
     install
+    cd "${base_dir}"
 
     touch "${base_dir}"/builds/${name}.installed
 }
 
 do_source() {
-    [ -f "${base_dir}"/sources/${from_source}.regenerated ] || (
-        prepare_nest
+    source "${base_dir}"/source-recipes/$1
 
-        source "${base_dir}"/source-recipes/${from_source}
+    do_fetch
+    do_patch
 
-        grep 'imagedeps=' "${base_dir}"/source-recipes/${from_source} &>/dev/null || \
-            imagedeps=""
-        grep 'hostdeps=' "${base_dir}"/source-recipes/${from_source} &>/dev/null || \
-            hostdeps=""
-        grep 'hostrundeps=' "${base_dir}"/source-recipes/${from_source} &>/dev/null || \
-            hostrundeps=""
-        grep 'deps=' "${base_dir}"/source-recipes/${from_source} &>/dev/null || \
-            deps=""
-
-        do_fetch
-        do_patch
-
-        prepare_container
-        run_in_container internal-regenerate ${from_source}
-        destroy_container
-    )
+    prepare_container
+    run_in_container internal-regenerate $1
+    destroy_container
 }
 
 do_host_pkg() {
@@ -485,7 +475,9 @@ do_host_pkg() {
 
     echo "* building host package: $name"
 
-    do_source
+    eval $(grep from_source < "${base_dir}"/host-recipes/$1)
+    [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
+        "${script}" internal-source "${from_source}"
 
     prepare_container
 
@@ -503,7 +495,9 @@ do_pkg() {
 
     echo "* building package: $name"
 
-    do_source
+    eval $(grep from_source < "${base_dir}"/recipes/$1)
+    [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
+        "${script}" internal-source "${from_source}"
 
     prepare_container
 
@@ -552,6 +546,19 @@ case "$1" in
         ;;
     internal-install)
         do_install "$2"
+        ;;
+    internal-get-deps-file)
+        source "${base_dir}"/recipes/$2
+        deps_file="$3"
+        get_deps_file
+        ;;
+    internal-get-hostdeps-file-run)
+        source "${base_dir}"/host-recipes/$2
+        hostdeps_file="$3"
+        get_hostdeps_file_run
+        ;;
+    internal-source)
+        do_source "$2"
         ;;
     host-build)
         do_host_pkg "$2"
