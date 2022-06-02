@@ -52,7 +52,12 @@ make_temp() {
     temp_collect="${temp_collect} ${tmp}"
 }
 
-trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
+prepare_nest() {
+    temp_collect=""
+    trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
+}
+
+prepare_nest
 
 build_hostdeps() {
     for hostdep in ${hostdeps} ${hostrundeps}; do
@@ -83,7 +88,7 @@ get_hostdeps_file_run() {
     done
 
     for hostdep in ${deps_to_do}; do
-        ( source "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
+        ( prepare_nest; source "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
     done
 }
 
@@ -96,7 +101,7 @@ get_hostdeps_file() {
     done
 
     for hostdep in ${deps_to_do}; do
-        ( source "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
+        ( prepare_nest; source "${base_dir}"/host-recipes/${hostdep} && get_hostdeps_file_run )
     done
 }
 
@@ -109,7 +114,7 @@ get_deps_file() {
     done
 
     for dep in ${deps_to_do}; do
-        ( source "${base_dir}"/recipes/${dep} && get_deps_file )
+        ( prepare_nest; source "${base_dir}"/recipes/${dep} && get_deps_file )
     done
 }
 
@@ -451,6 +456,8 @@ do_install() {
 
 do_source() {
     [ -f "${base_dir}"/sources/${from_source}.regenerated ] || (
+        prepare_nest
+
         source "${base_dir}"/source-recipes/${from_source}
 
         grep 'imagedeps=' "${base_dir}"/source-recipes/${from_source} &>/dev/null || \
