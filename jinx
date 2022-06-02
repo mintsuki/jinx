@@ -153,6 +153,11 @@ FROM archlinux:latest
 RUN pacman -Syu --noconfirm
 RUN pacman --needed --noconfirm -S bison diffutils flex gettext m4 make patch perl texinfo which
 RUN cp -r /usr/bin/core_perl/* /usr/bin/
+
+# Inhibit libtool
+RUN pacman --noconfirm -Rdd libtool
+RUN cd / && tar --wildcards -xf /var/cache/pacman/pkg/libtool-*.pkg.tar.zst 'usr/lib/libltdl.so*'
+
 EOF
 
     if ! [ -z "${imagedeps_aur}" ]; then
