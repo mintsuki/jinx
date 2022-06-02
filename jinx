@@ -218,6 +218,13 @@ destroy_container() {
     rm -rf "${container_pkgs}" "${sysroot_dir}" "${dockerfile_dir}"
 }
 
+do_hg_fetch() {
+    source_dir="${base_dir}"/sources/${name}
+    [ -d "${source_dir}" ] && return
+    hg clone ${clone_url} "${base_dir}"/sources/${name}
+    ( cd "${base_dir}"/sources/${name} && hg up ${tag} )
+}
+
 do_git_fetch() {
     source_dir="${base_dir}"/sources/${name}
     [ -d "${source_dir}" ] && return
@@ -260,6 +267,9 @@ do_fetch() {
             ;;
         git)
             do_git_fetch
+            ;;
+        mercurial)
+            do_hg_fetch
             ;;
         *)
             ;;
