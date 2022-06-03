@@ -282,7 +282,7 @@ do_patch() {
     cd "${source_dir}"
 
     for patch in "${base_dir}"/patches/${name}/*; do
-        patch -p1 < "${base_dir}"/patches/${name}/${patch}
+        patch -p1 < "${base_dir}"/patches/${name}/$(basename "${patch}")
     done
 
     cd "${base_dir}"
@@ -508,7 +508,7 @@ do_pkg() {
 
 do_all() {
     for pkg in "${base_dir}"/recipes/*; do
-        cd "${base_dir}" && "${script}" build ${pkg}
+        cd "${base_dir}" && "${script}" build $(basename "${pkg}")
     done
 }
 
@@ -516,7 +516,7 @@ do_sysroot() {
     mkdir -p "${base_dir}"/sysroot
     for pkg in "${base_dir}"/pkgs/*; do
         echo "* copying ${pkg} to sysroot..."
-        cp -r "${base_dir}"/pkgs/${pkg}/. "${base_dir}"/sysroot/
+        cp -r "${base_dir}"/pkgs/$(basename "${pkg}")/. "${base_dir}"/sysroot/
     done
 }
 
