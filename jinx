@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Copyright (c) 2022, mintsuki
 
@@ -31,7 +31,7 @@ base_dir="$(pwd -P)"
 script_name="$(basename "$0")"
 script_dir="$(dirname "$0")"
 if [ "$script_dir" = "." ] || [ -z "$script_dir" ]; then
-    if echo "$0" | grep "/" &>/dev/null; then
+    if echo "$0" | grep "/" >/dev/null 2>&1; then
         script_dir=.
     else
         script_dir="$(dirname $(which "${script_name}"))"
@@ -40,7 +40,7 @@ fi
 script_dir="$(cd "${script_dir}" && pwd -P)"
 script="${script_dir}/${script_name}"
 
-[ -f "${base_dir}"/jinx-config ] && source "${base_dir}"/jinx-config
+[ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
 
 die() {
     echo $1
@@ -76,11 +76,11 @@ build_deps() {
 }
 
 get_hostdeps_file_run() {
-    local deps_to_do=""
+    deps_to_do=""
 
     for hostdep in ${hostrundeps}; do
-        grep ${hostdep} "${hostdeps_file}" &>/dev/null || deps_to_do="${deps_to_do} ${hostdep}"
-        grep ${hostdep} "${hostdeps_file}" &>/dev/null || printf "${hostdep} " >> "${hostdeps_file}"
+        grep ${hostdep} "${hostdeps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${hostdep}"
+        grep ${hostdep} "${hostdeps_file}" >/dev/null 2>&1 || printf "${hostdep} " >> "${hostdeps_file}"
     done
 
     for hostdep in ${deps_to_do}; do
@@ -89,11 +89,11 @@ get_hostdeps_file_run() {
 }
 
 get_hostdeps_file() {
-    local deps_to_do=""
+    deps_to_do=""
 
     for hostdep in ${hostdeps} ${hostrundeps}; do
-        grep ${hostdep} "${hostdeps_file}" &>/dev/null || deps_to_do="${deps_to_do} ${hostdep}"
-        grep ${hostdep} "${hostdeps_file}" &>/dev/null || printf "${hostdep} " >> "${hostdeps_file}"
+        grep ${hostdep} "${hostdeps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${hostdep}"
+        grep ${hostdep} "${hostdeps_file}" >/dev/null 2>&1 || printf "${hostdep} " >> "${hostdeps_file}"
     done
 
     for hostdep in ${deps_to_do}; do
@@ -102,11 +102,11 @@ get_hostdeps_file() {
 }
 
 get_deps_file() {
-    local deps_to_do=""
+    deps_to_do=""
 
     for dep in ${deps}; do
-        grep ${dep} "${deps_file}" &>/dev/null || deps_to_do="${deps_to_do} ${dep}"
-        grep ${dep} "${deps_file}" &>/dev/null || printf "${dep} " >> "${deps_file}"
+        grep ${dep} "${deps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${dep}"
+        grep ${dep} "${deps_file}" >/dev/null 2>&1 || printf "${dep} " >> "${deps_file}"
     done
 
     for dep in ${deps_to_do}; do
@@ -180,7 +180,7 @@ EOF
 
         echo "USER root" >> "${dockerfile}"
 
-        ( echo "${imagedeps_aur}" | grep aura-bin &>/dev/null ) || \
+        ( echo "${imagedeps_aur}" | grep aura-bin >/dev/null 2>&1 ) || \
             echo "RUN pacman -Rs aura-bin --noconfirm || true" >> "${dockerfile}"
 
         echo "RUN pacman -Rs git sudo fakeroot gcc binutils --noconfirm || true" >> "${dockerfile}"
@@ -197,8 +197,6 @@ EOF
 }
 
 run_in_container() {
-    local image_id
-
     image_id=$(docker build -q "${dockerfile_dir}" || echo "failed")
     if [ "$image_id" = "failed" ]; then
         echo "* cached image causing issues, trying clean..."
@@ -243,8 +241,8 @@ do_tarball_fetch() {
     [ -d "${source_dir}" ] && return
 
     make_temp -d
-    local extract_dir="${tmp}"
-    local tarball_path="${base_dir}"/sources/"$(basename "${tarball_url}")"
+    extract_dir="${tmp}"
+    tarball_path="${base_dir}"/sources/"$(basename "${tarball_url}")"
 
     curl -o "${tarball_path}" "${tarball_url}"
 
@@ -293,7 +291,7 @@ do_patch() {
 }
 
 do_regenerate() {
-    source "${base_dir}"/source-recipes/$1
+    . "${base_dir}"/source-recipes/$1
 
     [ -f "${base_dir}"/sources/${name}.regenerated ] && return
 
@@ -308,7 +306,7 @@ do_regenerate() {
 }
 
 do_configure_host() {
-    source "${base_dir}"/host-recipes/$1
+    . "${base_dir}"/host-recipes/$1
 
     [ -f "${base_dir}"/host-builds/${name}.configured ] && return
 
@@ -332,7 +330,7 @@ do_configure_host() {
 }
 
 do_build_host() {
-    source "${base_dir}"/host-recipes/$1
+    . "${base_dir}"/host-recipes/$1
 
     [ -f "${base_dir}"/host-builds/${name}.built ] && return
 
@@ -354,7 +352,7 @@ do_build_host() {
 }
 
 do_install_host() {
-    source "${base_dir}"/host-recipes/$1
+    . "${base_dir}"/host-recipes/$1
 
     [ -f "${base_dir}"/host-builds/${name}.installed ] && return
 
@@ -383,7 +381,7 @@ do_install_host() {
 }
 
 do_configure() {
-    source "${base_dir}"/recipes/$1
+    . "${base_dir}"/recipes/$1
 
     [ -f "${base_dir}"/builds/${name}.configured ] && return
 
@@ -407,7 +405,7 @@ do_configure() {
 }
 
 do_build() {
-    source "${base_dir}"/recipes/$1
+    . "${base_dir}"/recipes/$1
 
     [ -f "${base_dir}"/builds/${name}.built ] && return
 
@@ -429,7 +427,7 @@ do_build() {
 }
 
 do_install() {
-    source "${base_dir}"/recipes/$1
+    . "${base_dir}"/recipes/$1
 
     [ -f "${base_dir}"/builds/${name}.installed ] && return
 
@@ -458,7 +456,7 @@ do_install() {
 }
 
 do_source() {
-    source "${base_dir}"/source-recipes/$1
+    . "${base_dir}"/source-recipes/$1
 
     do_fetch
     do_patch
@@ -469,7 +467,7 @@ do_source() {
 }
 
 do_host_pkg() {
-    source "${base_dir}"/host-recipes/$1
+    . "${base_dir}"/host-recipes/$1
 
     [ -f "${base_dir}"/host-builds/${name}.installed ] && return
 
@@ -489,7 +487,7 @@ do_host_pkg() {
 }
 
 do_pkg() {
-    source "${base_dir}"/recipes/$1
+    . "${base_dir}"/recipes/$1
 
     [ -f "${base_dir}"/builds/${name}.installed ] && return
 
@@ -548,12 +546,12 @@ case "$1" in
         do_install "$2"
         ;;
     internal-get-deps-file)
-        source "${base_dir}"/recipes/$2
+        . "${base_dir}"/recipes/$2
         deps_file="$3"
         get_deps_file
         ;;
     internal-get-hostdeps-file-run)
-        source "${base_dir}"/host-recipes/$2
+        . "${base_dir}"/host-recipes/$2
         hostdeps_file="$3"
         get_hostdeps_file_run
         ;;
