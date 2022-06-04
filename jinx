@@ -525,9 +525,10 @@ cmd_build() {
 }
 
 cmd_sysroot() {
+    rm -rf "${base_dir}"/sysroot
     mkdir -p "${base_dir}"/sysroot
     for pkg in "${base_dir}"/pkgs/*; do
-        echo "* copying ${pkg} to sysroot..."
+        echo "* copying $(basename ${pkg}) to sysroot..."
         cp -r "${base_dir}"/pkgs/$(basename "${pkg}")/. "${base_dir}"/sysroot/
     done
 }
