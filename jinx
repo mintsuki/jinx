@@ -276,14 +276,26 @@ do_fetch() {
 }
 
 do_patch() {
-    [ -d "${base_dir}"/patches/${name} ] || return 0
     [ -f "${base_dir}"/sources/${name}.patched ] && return
 
     cd "${source_dir}"
 
-    for patch in "${base_dir}"/patches/${name}/*; do
-        patch -p1 < "${base_dir}"/patches/${name}/$(basename "${patch}")
-    done
+    if [ -d "${base_dir}"/patches/${name} ]; then
+        for patch in "${base_dir}"/patches/${name}/*; do
+            [ "${patch}" = "${base_dir}/patches/${name}/*" ] && break
+            [ "${patch}" = "${base_dir}"/patches/${name}/jinx-working-patch.patch ] && continue
+            patch -p1 < "${patch}"
+        done
+    fi
+
+
+    cp -r "${source_dir}" "${source_dir}"-clean
+
+    if [ -f "${base_dir}"/patches/${name}/jinx-working-patch.patch ]; then
+        patch -p1 < "${base_dir}"/patches/${name}/jinx-working-patch.patch
+    fi
+
+    cp -r "${source_dir}" "${source_dir}"-workdir
 
     cd "${base_dir}"
 
@@ -466,6 +478,33 @@ do_source() {
     destroy_container
 }
 
+do_regen_cmd() {
+    . "${base_dir}"/source-recipes/$1
+
+    make_temp
+    patch_file="${tmp}"
+
+    cd "${base_dir}"/sources
+
+    git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
+
+    if [ -s "${patch_file}" ]; then
+        mkdir -p "${base_dir}"/patches/$1
+        mv "${patch_file}" "${base_dir}"/patches/$1/jinx-working-patch.patch
+    fi
+
+    cd "${base_dir}"
+
+    rm -rf "${base_dir}"/sources/$1.regenerated
+
+    rm -rf "${base_dir}"/sources/$1
+    cp -r "${base_dir}"/sources/$1-workdir "${base_dir}"/sources/$1
+
+    prepare_container
+    run_in_container internal-regenerate $1
+    destroy_container
+}
+
 do_host_pkg() {
     . "${base_dir}"/host-recipes/$1
 
@@ -524,12 +563,18 @@ cmd_build() {
     done
 }
 
+cmd_regenerate() {
+    for i in "$@"; do
+        "${script}" internal-do-regenerate "$i"
+    done
+}
+
 cmd_sysroot() {
     rm -rf "${base_dir}"/sysroot
     mkdir -p "${base_dir}"/sysroot
     for pkg in "${base_dir}"/pkgs/*; do
         echo "* copying $(basename ${pkg}) to sysroot..."
-        cp -r "${base_dir}"/pkgs/$(basename "${pkg}")/. "${base_dir}"/sysroot/
+        cp -r "${pkg}"/. "${base_dir}"/sysroot/
     done
 }
 
@@ -574,6 +619,9 @@ case "$1" in
     internal-do-pkg)
         do_pkg "$2"
         ;;
+    internal-do-regenerate)
+        do_regen_cmd "$2"
+        ;;
     host-build)
         shift 1
         cmd_host_build "$@"
@@ -584,6 +632,10 @@ case "$1" in
         ;;
     build-all)
         cmd_build_all
+        ;;
+    regenerate)
+        shift 1
+        cmd_regenerate "$@"
         ;;
     sysroot)
         cmd_sysroot
