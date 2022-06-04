@@ -506,13 +506,25 @@ do_pkg() {
     destroy_container
 }
 
-do_all() {
+cmd_build_all() {
     for pkg in "${base_dir}"/recipes/*; do
-        cd "${base_dir}" && "${script}" build $(basename "${pkg}")
+        "${script}" internal-do-pkg $(basename "${pkg}")
     done
 }
 
-do_sysroot() {
+cmd_host_build() {
+    for i in "$@"; do
+        "${script}" internal-do-host-pkg "$i"
+    done
+}
+
+cmd_build() {
+    for i in "$@"; do
+        "${script}" internal-do-pkg "$i"
+    done
+}
+
+cmd_sysroot() {
     mkdir -p "${base_dir}"/sysroot
     for pkg in "${base_dir}"/pkgs/*; do
         echo "* copying ${pkg} to sysroot..."
@@ -521,9 +533,6 @@ do_sysroot() {
 }
 
 case "$1" in
-    sysroot)
-        do_sysroot
-        ;;
     internal-regenerate)
         do_regenerate "$2"
         ;;
@@ -558,14 +567,25 @@ case "$1" in
     internal-source)
         do_source "$2"
         ;;
-    host-build)
+    internal-do-host-pkg)
         do_host_pkg "$2"
         ;;
-    build)
+    internal-do-pkg)
         do_pkg "$2"
         ;;
+    host-build)
+        shift 1
+        cmd_host_build "$@"
+        ;;
+    build)
+        shift 1
+        cmd_build "$@"
+        ;;
     build-all)
-        do_all
+        cmd_build_all
+        ;;
+    sysroot)
+        cmd_sysroot
         ;;
     *)
         die "unknown command: $1"
