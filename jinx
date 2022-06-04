@@ -219,14 +219,12 @@ destroy_container() {
 }
 
 do_hg_fetch() {
-    source_dir="${base_dir}"/sources/${name}
     [ -d "${source_dir}" ] && return
     hg clone ${clone_url} "${base_dir}"/sources/${name}
     ( cd "${base_dir}"/sources/${name} && hg up ${tag} )
 }
 
 do_git_fetch() {
-    source_dir="${base_dir}"/sources/${name}
     [ -d "${source_dir}" ] && return
     if ! [ -z "${commit}" ]; then
         git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
@@ -237,7 +235,6 @@ do_git_fetch() {
 }
 
 do_tarball_fetch() {
-    source_dir="${base_dir}"/sources/${name}
     [ -d "${source_dir}" ] && return
 
     make_temp -d
@@ -256,10 +253,20 @@ do_tarball_fetch() {
     rm -rf "${extract_dir}" "${tarball_path}"
 }
 
+get_real_source_dir() {
+    source_dir="${base_dir}"/"${source_dir}"
+    case ${source_method} in
+        tarball|git|mercurial)
+            source_dir="${base_dir}"/sources/${name}
+            ;;
+        *)
+            ;;
+    esac
+}
+
 do_fetch() {
     mkdir -p "${base_dir}"/sources
 
-    source_dir="${base_dir}"/"${source_dir}"
     case ${source_method} in
         tarball)
             do_tarball_fetch
@@ -289,13 +296,13 @@ do_patch() {
     fi
 
 
-    cp -r "${source_dir}" "${source_dir}"-clean
+    cp -r "${source_dir}" "${base_dir}"/sources/${name}-clean
 
     if [ -f "${base_dir}"/patches/${name}/jinx-working-patch.patch ]; then
         patch -p1 < "${base_dir}"/patches/${name}/jinx-working-patch.patch
     fi
 
-    cp -r "${source_dir}" "${source_dir}"-workdir
+    cp -r "${source_dir}" "${base_dir}"/sources/${name}-workdir
 
     cd "${base_dir}"
 
@@ -470,6 +477,8 @@ do_install() {
 do_source() {
     . "${base_dir}"/source-recipes/$1
 
+    get_real_source_dir
+
     do_fetch
     do_patch
 
@@ -480,6 +489,10 @@ do_source() {
 
 do_regen_cmd() {
     . "${base_dir}"/source-recipes/$1
+
+    get_real_source_dir
+
+    [ -f "${base_dir}"/sources/$1.patched ] || die "cannot regenerate non-built package"
 
     make_temp
     patch_file="${tmp}"
@@ -497,8 +510,8 @@ do_regen_cmd() {
 
     rm -rf "${base_dir}"/sources/$1.regenerated
 
-    rm -rf "${base_dir}"/sources/$1
-    cp -r "${base_dir}"/sources/$1-workdir "${base_dir}"/sources/$1
+    rm -rf "${source_dir}"
+    cp -r "${base_dir}"/sources/$1-workdir "${source_dir}"
 
     prepare_container
     run_in_container internal-regenerate $1
