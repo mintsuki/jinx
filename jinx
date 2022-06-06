@@ -396,6 +396,11 @@ do_install_host() {
     install
     cd "${base_dir}"
 
+    # Remove libtool files
+    for i in lib lib64 lib32 usr/lib usr/lib64 usr/lib32; do
+        rm -rvf "${dest_dir}${prefix}"/$i/*.la
+    done
+
     touch "${base_dir}"/host-builds/${name}.installed
 }
 
@@ -470,6 +475,11 @@ do_install() {
     cd "${base_dir}"/builds/${name}
     install
     cd "${base_dir}"
+
+    # Remove libtool files
+    for i in lib lib64 lib32 usr/lib usr/lib64 usr/lib32; do
+        rm -rvf "${dest_dir}${prefix}"/$i/*.la
+    done
 
     touch "${base_dir}"/builds/${name}.installed
 }
