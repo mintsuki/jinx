@@ -260,6 +260,7 @@ get_real_source_dir() {
             source_dir="${base_dir}"/sources/${name}
             ;;
         *)
+            is_local_package=true
             ;;
     esac
 }
@@ -500,28 +501,30 @@ do_source() {
 do_regen_cmd() {
     . "${base_dir}"/source-recipes/$1
 
-    get_real_source_dir
-
     [ -f "${base_dir}"/sources/$1.patched ] || die "cannot regenerate non-built package"
+
+    get_real_source_dir
 
     make_temp
     patch_file="${tmp}"
 
-    cd "${base_dir}"/sources
+    if [ "${is_local_package}" = true ]; then
+        cd "${base_dir}"/sources
 
-    git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
+        git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
 
-    if [ -s "${patch_file}" ]; then
-        mkdir -p "${base_dir}"/patches/$1
-        mv "${patch_file}" "${base_dir}"/patches/$1/jinx-working-patch.patch
+        if [ -s "${patch_file}" ]; then
+            mkdir -p "${base_dir}"/patches/$1
+            mv "${patch_file}" "${base_dir}"/patches/$1/jinx-working-patch.patch
+        fi
+
+        cd "${base_dir}"
+
+        rm -rf "${source_dir}"
+        cp -r "${base_dir}"/sources/$1-workdir "${source_dir}"
     fi
 
-    cd "${base_dir}"
-
     rm -rf "${base_dir}"/sources/$1.regenerated
-
-    rm -rf "${source_dir}"
-    cp -r "${base_dir}"/sources/$1-workdir "${source_dir}"
 
     prepare_container
     run_in_container internal-regenerate $1
