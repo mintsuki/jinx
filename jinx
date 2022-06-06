@@ -522,7 +522,7 @@ do_regen_cmd() {
     make_temp
     patch_file="${tmp}"
 
-    if [ "${is_local_package}" = true ]; then
+    if ! [ "${is_local_package}" = true ]; then
         cd "${base_dir}"/sources
 
         git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
