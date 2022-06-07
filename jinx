@@ -538,7 +538,41 @@ do_cmd_regenerate() {
     if ! [ "${is_local_package}" = true ]; then
         cd "${base_dir}"/sources
 
+        # exclude version control dirs
+        make_temp -d
+        vc_dir_clean="${tmp}"
+        rm -rf "${vc_dir_clean}"
+        make_temp -d
+        vc_dir_workdir="${tmp}"
+        rm -rf "${vc_dir_workdir}"
+
+        case "${source_method}" in
+            git)
+                mv $1-clean/.git "${vc_dir_clean}"
+                mv $1-workdir/.git "${vc_dir_workdir}"
+                ;;
+            mercurial)
+                mv $1-clean/.hg "${vc_dir_clean}"
+                mv $1-workdir/.hg "${vc_dir_workdir}"
+                ;;
+            *)
+                ;;
+        esac
+
         git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
+
+        case "${source_method}" in
+            git)
+                mv "${vc_dir_clean}" $1-clean/.git
+                mv "${vc_dir_workdir}" $1-workdir/.git
+                ;;
+            mercurial)
+                mv "${vc_dir_clean}" $1-clean/.hg
+                mv "${vc_dir_workdir}" $1-workdir/.hg
+                ;;
+            *)
+                ;;
+        esac
 
         if [ -s "${patch_file}" ]; then
             mkdir -p "${base_dir}"/patches/$1
