@@ -512,7 +512,7 @@ do_cmd_host_rebuild() {
     do_host_pkg "$1"
 }
 
-do_regen_cmd() {
+do_cmd_regenerate() {
     . "${base_dir}"/source-recipes/$1
 
     [ -f "${base_dir}"/sources/$1.patched ] || die "cannot regenerate non-built package"
@@ -621,6 +621,15 @@ cmd_rebuild() {
     done
 }
 
+cmd_clean() {
+    rm -rf "${base_dir}"/builds
+    rm -rf "${base_dir}"/host-builds
+    rm -rf "${base_dir}"/pkgs
+    rm -rf "${base_dir}"/host-pkgs
+    rm -rf "${base_dir}"/sources
+    rm -rf "${base_dir}"/sysroot
+}
+
 cmd_sysroot() {
     rm -rf "${base_dir}"/sysroot
     mkdir -p "${base_dir}"/sysroot
@@ -672,7 +681,7 @@ case "$1" in
         do_pkg "$2"
         ;;
     internal-do-regenerate)
-        do_regen_cmd "$2"
+        do_cmd_regenerate "$2"
         ;;
     internal-do-host-rebuild)
         do_cmd_host_rebuild "$2"
@@ -705,6 +714,9 @@ case "$1" in
         ;;
     sysroot)
         cmd_sysroot
+        ;;
+    clean)
+        cmd_clean
         ;;
     *)
         die "unknown command: $1"
