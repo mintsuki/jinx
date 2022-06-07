@@ -284,6 +284,10 @@ do_fetch() {
 }
 
 do_patch() {
+    . "${base_dir}"/source-recipes/$1
+
+    get_real_source_dir
+
     [ -f "${base_dir}"/sources/${name}.patched ] && return
 
     make_temp
@@ -316,10 +320,9 @@ do_patch() {
 do_regenerate() {
     . "${base_dir}"/source-recipes/$1
 
-    [ -f "${base_dir}"/sources/${name}.regenerated ] && return
+    get_real_source_dir
 
-    eval $(grep source_dir < "${base_dir}"/source-recipes/${name})
-    [ -z "${source_dir}" ] && source_dir="${base_dir}"/sources/${name}
+    [ -f "${base_dir}"/sources/${name}.regenerated ] && return
 
     cd "${source_dir}"
     regenerate
@@ -488,13 +491,22 @@ do_install() {
     touch "${base_dir}"/builds/${name}.installed
 }
 
+precont_patch() {
+    imagedeps=""
+
+    prepare_container
+    run_in_container internal-patch $1
+    destroy_container
+}
+
 do_source() {
     . "${base_dir}"/source-recipes/$1
 
     get_real_source_dir
 
     do_fetch
-    do_patch
+
+    "${script}" internal-precont-patch $1
 
     prepare_container
     run_in_container internal-regenerate $1
@@ -645,6 +657,12 @@ cmd_sysroot() {
 case "$1" in
     internal-regenerate)
         do_regenerate "$2"
+        ;;
+    internal-precont-patch)
+        precont_patch "$2"
+        ;;
+    internal-patch)
+        do_patch "$2"
         ;;
     internal-configure-host)
         do_configure_host "$2"
