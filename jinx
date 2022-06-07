@@ -283,12 +283,10 @@ do_fetch() {
     esac
 }
 
-do_patch() {
+cont_patch() {
     . "${base_dir}"/source-recipes/$1
 
     get_real_source_dir
-
-    [ -f "${base_dir}"/sources/${name}.patched ] && return
 
     make_temp
     patch_trash="${tmp}"
@@ -492,10 +490,10 @@ do_install() {
 }
 
 precont_patch() {
-    imagedeps=""
+    [ -f "${base_dir}"/sources/$1.patched ] && return
 
     prepare_container
-    run_in_container internal-patch $1
+    run_in_container internal-cont-patch $1
     destroy_container
 }
 
@@ -661,8 +659,8 @@ case "$1" in
     internal-precont-patch)
         precont_patch "$2"
         ;;
-    internal-patch)
-        do_patch "$2"
+    internal-cont-patch)
+        cont_patch "$2"
         ;;
     internal-configure-host)
         do_configure_host "$2"
