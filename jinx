@@ -286,13 +286,16 @@ do_fetch() {
 do_patch() {
     [ -f "${base_dir}"/sources/${name}.patched ] && return
 
+    make_temp
+    patch_trash="${tmp}"
+
     cd "${source_dir}"
 
     if [ -d "${base_dir}"/patches/${name} ]; then
         for patch in "${base_dir}"/patches/${name}/*; do
             [ "${patch}" = "${base_dir}/patches/${name}/*" ] && break
             [ "${patch}" = "${base_dir}"/patches/${name}/jinx-working-patch.patch ] && continue
-            patch -p1 < "${patch}"
+            patch --posix -p1 -r "${patch_trash}" < "${patch}"
         done
     fi
 
@@ -300,7 +303,7 @@ do_patch() {
     cp -r "${source_dir}" "${base_dir}"/sources/${name}-clean
 
     if [ -f "${base_dir}"/patches/${name}/jinx-working-patch.patch ]; then
-        patch -p1 < "${base_dir}"/patches/${name}/jinx-working-patch.patch
+        patch --posix -p1 -r "${patch_trash}" < "${base_dir}"/patches/${name}/jinx-working-patch.patch
     fi
 
     cp -r "${source_dir}" "${base_dir}"/sources/${name}-workdir
