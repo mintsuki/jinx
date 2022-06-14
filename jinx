@@ -229,6 +229,8 @@ do_git_fetch() {
     if ! [ -z "${commit}" ]; then
         git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
         ( cd "${base_dir}"/sources/${name} && git checkout ${commit} )
+    elif [ "${shallow}" = "no" ]; then
+        git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
     else
         git clone ${clone_url} --branch=${tag} --depth=1 "${base_dir}"/sources/${name}
     fi
