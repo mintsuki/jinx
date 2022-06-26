@@ -40,8 +40,6 @@ fi
 script_dir="$(cd "${script_dir}" && pwd -P)"
 script="${script_dir}/${script_name}"
 
-[ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
-
 die() {
     echo $1
     exit 1
@@ -319,6 +317,8 @@ do_regenerate() {
 
     [ -f "${base_dir}"/sources/${name}.regenerated ] && return
 
+    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+
     cd "${source_dir}"
     regenerate
     cd "${base_dir}"
@@ -343,6 +343,8 @@ do_configure_host() {
     prefix="/usr/local"
     sysroot_dir="/sysroot"
 
+    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+
     cd "${base_dir}"/host-builds/${name}
     configure
     cd "${base_dir}"
@@ -364,6 +366,8 @@ do_build_host() {
 
     prefix="/usr/local"
     sysroot_dir="/sysroot"
+
+    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
 
     cd "${base_dir}"/host-builds/${name}
     build
@@ -394,6 +398,8 @@ do_install_host() {
 
     mkdir -p "${dest_dir}${prefix}"
 
+    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+
     cd "${base_dir}"/host-builds/${name}
     install
     cd "${base_dir}"
@@ -423,6 +429,8 @@ do_configure() {
     prefix="/usr"
     sysroot_dir="/sysroot"
 
+    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+
     cd "${base_dir}"/builds/${name}
     configure
     cd "${base_dir}"
@@ -444,6 +452,8 @@ do_build() {
 
     prefix="/usr"
     sysroot_dir="/sysroot"
+
+    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
 
     cd "${base_dir}"/builds/${name}
     build
@@ -473,6 +483,8 @@ do_install() {
     sysroot_dir="/sysroot"
 
     mkdir -p "${dest_dir}${prefix}"
+
+    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
 
     cd "${base_dir}"/builds/${name}
     install
