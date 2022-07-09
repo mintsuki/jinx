@@ -41,9 +41,9 @@ script_dir="$(cd "${script_dir}" && pwd -P)"
 script="${script_dir}/${script_name}"
 
 if [ -z "$JINX_CONFIG_FILE" ]; then
-    JINX_CONFIG_FILE="${base_dir}"/jinx-config
+    JINX_CONFIG_FILE_PATH="${base_dir}"/jinx-config
 else
-    JINX_CONFIG_FILE="${base_dir}"/"${JINX_CONFIG_FILE}"
+    JINX_CONFIG_FILE_PATH="${base_dir}"/"${JINX_CONFIG_FILE}"
 fi
 
 die() {
@@ -214,6 +214,7 @@ run_in_container() {
 
     docker run $docker_it --rm \
         --user=$(id -u):$(id -g) \
+        -e JINX_CONFIG_FILE="${JINX_CONFIG_FILE}" \
         -v "${container_pkgs}":/usr/local \
         -v "${sysroot_dir}":/sysroot \
         -v "${script_dir}":/jinx \
@@ -328,7 +329,7 @@ do_regenerate() {
 
     [ -f "${base_dir}"/sources/${name}.regenerated ] && return
 
-    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
+    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${source_dir}"
     regenerate
@@ -354,7 +355,7 @@ do_configure_host() {
     prefix="/usr/local"
     sysroot_dir="/sysroot"
 
-    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
+    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${base_dir}"/host-builds/${name}
     configure
@@ -378,7 +379,7 @@ do_build_host() {
     prefix="/usr/local"
     sysroot_dir="/sysroot"
 
-    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
+    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${base_dir}"/host-builds/${name}
     build
@@ -409,7 +410,7 @@ do_install_host() {
 
     mkdir -p "${dest_dir}${prefix}"
 
-    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
+    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${base_dir}"/host-builds/${name}
     install
@@ -440,7 +441,7 @@ do_configure() {
     prefix="/usr"
     sysroot_dir="/sysroot"
 
-    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
+    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${base_dir}"/builds/${name}
     configure
@@ -464,7 +465,7 @@ do_build() {
     prefix="/usr"
     sysroot_dir="/sysroot"
 
-    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
+    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${base_dir}"/builds/${name}
     build
@@ -495,7 +496,7 @@ do_install() {
 
     mkdir -p "${dest_dir}${prefix}"
 
-    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
+    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${base_dir}"/builds/${name}
     install
