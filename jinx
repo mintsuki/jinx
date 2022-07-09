@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 
 # Copyright (c) 2022, mintsuki
 
@@ -39,6 +39,12 @@ if [ "$script_dir" = "." ] || [ -z "$script_dir" ]; then
 fi
 script_dir="$(cd "${script_dir}" && pwd -P)"
 script="${script_dir}/${script_name}"
+
+if [ -z "$JINX_CONFIG_FILE" ]; then
+    JINX_CONFIG_FILE="${base_dir}"/jinx-config
+else
+    JINX_CONFIG_FILE="${base_dir}"/"${JINX_CONFIG_FILE}"
+fi
 
 die() {
     echo $1
@@ -170,10 +176,10 @@ EOF
         echo "WORKDIR /home/auruser" >> "${dockerfile}"
 
         echo "RUN git clone https://aur.archlinux.org/aura-bin.git" >> "${dockerfile}"
-        echo "RUN cd aura-bin && makepkg -si --noconfirm" >> "${dockerfile}"
+        echo "RUN cd aura-bin && makepkg -si --noconfirm --skippgpcheck" >> "${dockerfile}"
 
         for imagedep_aur in ${imagedeps_aur}; do
-            echo "RUN yes | sudo aura -Aax ${imagedep_aur}" >> "${dockerfile}"
+            echo "RUN yes | sudo aura -Aax --skippgpcheck ${imagedep_aur}" >> "${dockerfile}"
         done
 
         echo "USER root" >> "${dockerfile}"
@@ -322,7 +328,7 @@ do_regenerate() {
 
     [ -f "${base_dir}"/sources/${name}.regenerated ] && return
 
-    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
 
     cd "${source_dir}"
     regenerate
@@ -348,7 +354,7 @@ do_configure_host() {
     prefix="/usr/local"
     sysroot_dir="/sysroot"
 
-    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
 
     cd "${base_dir}"/host-builds/${name}
     configure
@@ -372,7 +378,7 @@ do_build_host() {
     prefix="/usr/local"
     sysroot_dir="/sysroot"
 
-    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
 
     cd "${base_dir}"/host-builds/${name}
     build
@@ -403,7 +409,7 @@ do_install_host() {
 
     mkdir -p "${dest_dir}${prefix}"
 
-    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
 
     cd "${base_dir}"/host-builds/${name}
     install
@@ -434,7 +440,7 @@ do_configure() {
     prefix="/usr"
     sysroot_dir="/sysroot"
 
-    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
 
     cd "${base_dir}"/builds/${name}
     configure
@@ -458,7 +464,7 @@ do_build() {
     prefix="/usr"
     sysroot_dir="/sysroot"
 
-    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
 
     cd "${base_dir}"/builds/${name}
     build
@@ -489,7 +495,7 @@ do_install() {
 
     mkdir -p "${dest_dir}${prefix}"
 
-    [ -f "${base_dir}"/jinx-config ] && . "${base_dir}"/jinx-config
+    [ -f "${JINX_CONFIG_FILE}" ] && . "${JINX_CONFIG_FILE}"
 
     cd "${base_dir}"/builds/${name}
     install
