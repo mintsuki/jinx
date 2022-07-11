@@ -253,7 +253,7 @@ do_tarball_fetch() {
     extract_dir="${tmp}"
     tarball_path="${base_dir}"/sources/"$(basename "${tarball_url}")"
 
-    curl -o "${tarball_path}" "${tarball_url}"
+    curl -L -o "${tarball_path}" "${tarball_url}"
 
     ( cd "${extract_dir}" && tar -xf "${tarball_path}" )
 
