@@ -25,10 +25,14 @@ int main(int argc, char *argv[]) {
 
     char *rootfs = NULL;
     char **mounts = NULL;
+    char **envs = NULL;
     char **process_args = NULL;
 
     int mount_count = 0;
     int mounts_size = 0;
+
+    int env_count = 0;
+    int envs_size = 0;
 
     bool rw_root = false;
     int uid = -1, gid = -1;
@@ -104,6 +108,34 @@ int main(int argc, char *argv[]) {
             }
 
             mounts[mount_count++] = argv[i + 1];
+            i += 2;
+        } else if (strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--env") == 0) {
+            if (i == argc - 1) {
+                fprintf(stderr, "%s: '%s' requires a value\n", argv[0], argv[i]);
+                goto cleanup;
+            }
+
+            if (env_count == envs_size) {
+                envs_size = envs_size == 0 ? 16 : envs_size * 2;
+                char **tmp_envs = realloc(envs, sizeof(char *) * envs_size);
+                if (tmp_envs == NULL) {
+                    fprintf(stderr, "%s: failed to allocate environment variables array\n", argv[0]);
+                    goto cleanup;
+                }
+                envs = tmp_envs;
+            }
+
+            char *value = argv[i + 1];
+            while (*value && *value != '=') {
+                value++;
+            }
+
+            if (!*value) {
+                fprintf(stderr, "%s: environment variables need to be provided in the 'key=value' format\n", argv[0]);
+                goto cleanup;
+            }
+
+            envs[env_count++] = argv[i + 1];
             i += 2;
         } else if (strcmp(argv[i], "--") == 0) {
             if (i == argc - 1) {
@@ -278,6 +310,18 @@ int main(int argc, char *argv[]) {
         if (child == 0) {
             setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl", 1);
 
+            for (int i = 0; i < env_count; i++) {
+                char *key = envs[i];
+                char *value = key;
+
+                while (*value && *value != '=') {
+                    value++;
+                }
+
+                *value++ = 0;
+                setenv(key, value, 1);
+            }
+
             if (execvp(process_args[0], process_args) < 0) {
                 err_msg = "execvp() failure at line " TOSTRING(__LINE__);
                 goto errno_error;
@@ -315,6 +359,9 @@ errno_error:
 cleanup:
     if (mounts != NULL) {
         free(mounts);
+    }
+    if (envs != NULL) {
+        free(envs);
     }
     if (setgroups_fd >= 0) {
         close(setgroups_fd);
