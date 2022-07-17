@@ -702,6 +702,30 @@ cmd_sysroot() {
     done
 }
 
+cmd_install() {
+    sysroot="$1"
+    shift 1
+    mkdir -p "${sysroot}"
+
+    for ppkg in "$@"; do
+        for pkg in $(eval echo pkgs/"${ppkg}"); do
+            deps="${deps} $(basename "${pkg}")"
+        done
+    done
+
+    make_temp
+    deps_file="${tmp}"
+
+    echo "* resolving dependencies..."
+
+    get_deps_file
+
+    for pkg in $(cat "${deps_file}"); do
+        echo "* installing ${pkg} to sysroot '${sysroot}'..."
+        cp -rf pkgs/"${pkg}"/. "${sysroot}"/
+    done
+}
+
 case "$1" in
     internal-regenerate)
         do_regenerate "$2"
@@ -774,6 +798,10 @@ case "$1" in
     rebuild)
         shift 1
         cmd_rebuild "$@"
+        ;;
+    install)
+        shift 1
+        cmd_install "$@"
         ;;
     sysroot)
         cmd_sysroot
