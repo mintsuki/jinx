@@ -291,7 +291,7 @@ int main(int argc, char *argv[]) {
                 goto errno_error;
             }
 
-            ok = exit_code;
+            ok = WEXITSTATUS(exit_code);
             goto cleanup;
         }
 
@@ -305,7 +305,7 @@ int main(int argc, char *argv[]) {
             goto errno_error;
         }
 
-        ok = exit_code;
+        ok = WEXITSTATUS(exit_code);
         goto cleanup;
     }
 
