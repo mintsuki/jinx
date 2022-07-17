@@ -7,4 +7,4 @@ distributions inspired by xbstrap (https://github.com/managarm/xbstrap).
 
 Documentation is currently lacking as this project is pretty new and I did not
 have time to write it yet, but a relatively complete example of Jinx usage can be found at
-https://github.com/vlang/vinix.
+https://github.com/lyre-os/lyre.
