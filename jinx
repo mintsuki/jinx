@@ -143,89 +143,43 @@ prepare_container() {
         cp -r "${base_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
     done
 
-    rm -f "${hostdeps_file}" "${deps_file}"
-
     imagedeps="$(echo "${imagedeps}" | xargs -n1 | sort -u | xargs)"
 
-    echo "* creating container..."
+    pkgset=""
+    for pkg in ${imagedeps}; do
+        pkgset="${pkgset}${pkg}/"
 
-    make_temp -d
-    dockerfile_dir="${tmp}"
-    dockerfile="${dockerfile_dir}/Dockerfile"
-    cat >"${dockerfile}" <<EOF
-FROM archlinux:latest
+        if [ -d "$HOME/.cache/jinx/sets/${pkgset}.image" ]; then
+            continue
+        fi
 
-RUN pacman -Syu --noconfirm
-RUN pacman --needed --noconfirm -S bison diffutils flex gettext libtool m4 make patch perl texinfo which
-ENV PATH "\$PATH:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl"
+        mkdir -p "$HOME/.cache/jinx/sets/${pkgset}"
 
-EOF
+        cp -r "$HOME/.cache/jinx/sets/${pkgset}../.image" "$HOME/.cache/jinx/sets/${pkgset}.image"
+        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 -- pacman --noconfirm -Syu
 
-    if ! [ -z "${imagedeps_aur}" ]; then
-        imagedeps_aur="$(echo "${imagedeps_aur}" | xargs -n1 | sort -u | xargs)"
-
-        echo "RUN pacman --needed --noconfirm -S git sudo fakeroot gcc binutils" >> "${dockerfile}"
-
-        echo "RUN useradd -m auruser" >> "${dockerfile}"
-        echo "RUN echo 'auruser:auruser' | chpasswd" >> "${dockerfile}"
-        echo "RUN groupadd sudo" >> "${dockerfile}"
-        echo "RUN usermod -aG sudo auruser" >> "${dockerfile}"
-        echo "RUN sed -i 's/# %sudo\tALL=(ALL:ALL) ALL/%sudo ALL=(ALL:ALL) NOPASSWD: ALL/g' /etc/sudoers" >> "${dockerfile}"
-
-        echo "USER auruser" >> "${dockerfile}"
-        echo "WORKDIR /home/auruser" >> "${dockerfile}"
-
-        echo "RUN git clone https://aur.archlinux.org/aura-bin.git" >> "${dockerfile}"
-        echo "RUN cd aura-bin && makepkg -si --noconfirm --skippgpcheck" >> "${dockerfile}"
-
-        for imagedep_aur in ${imagedeps_aur}; do
-            echo "RUN yes | sudo aura -Aax --skippgpcheck ${imagedep_aur}" >> "${dockerfile}"
-        done
-
-        echo "USER root" >> "${dockerfile}"
-
-        ( echo "${imagedeps_aur}" | grep aura-bin >/dev/null 2>&1 ) || \
-            echo "RUN pacman -Rs aura-bin --noconfirm || true" >> "${dockerfile}"
-
-        echo "RUN pacman -Rs git sudo fakeroot gcc binutils --noconfirm || true" >> "${dockerfile}"
-        echo "RUN pacman -Qdtq | pacman -Rs - --noconfirm || true" >> "${dockerfile}"
-
-        echo "RUN userdel -r auruser" >> "${dockerfile}"
-    fi
-
-    for imagedep in ${imagedeps}; do
-        echo "RUN pacman --needed --noconfirm -S ${imagedep}" >> "${dockerfile}"
+        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 -- pacman --needed --noconfirm -S "${pkg}"
     done
 
-    echo 'CMD ["bash"]' >> "${dockerfile}"
+    imgroot="$HOME/.cache/jinx/sets/${pkgset}.image"
 }
 
 run_in_container() {
-    image_id=$(docker build -q "${dockerfile_dir}" || echo "failed")
-    if [ "$image_id" = "failed" ]; then
-        echo "* cached image causing issues, trying clean..."
-        image_id=$(docker build -q --no-cache "${dockerfile_dir}")
-    fi
-
-    local docker_it="-it"
-
-    [ "$JINX_DOCKER_INTERACTIVE" = "no" ] && \
-        docker_it=""
-
-    docker run $docker_it --rm \
-        --user=$(id -u):$(id -g) \
-        -e JINX_CONFIG_FILE="${JINX_CONFIG_FILE}" \
-        -v "${container_pkgs}":/usr/local \
-        -v "${sysroot_dir}":/sysroot \
-        -v "${script_dir}":/jinx \
-        -v "${base_dir}":/base_dir \
-        -w /base_dir \
-        ${image_id} \
-        /jinx/${script_name} $1 $2 $3 $4 $5
+    "$HOME/.cache/jinx/rbrt" \
+        --root "${imgroot}" \
+        --uid $(id -u) \
+        --gid $(id -g) \
+        --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
+        --mount "${container_pkgs}":/usr/local \
+        --mount "${sysroot_dir}":/sysroot \
+        --mount "${script_dir}":/jinx \
+        --mount "${base_dir}":/base_dir \
+        -- \
+        bash -c "cd /base_dir && /jinx/${script_name} $1 $2 $3 $4 $5"
 }
 
 destroy_container() {
-    rm -rf "${container_pkgs}" "${sysroot_dir}" "${dockerfile_dir}"
+    rm -rf "${container_pkgs}" "${sysroot_dir}"
 }
 
 do_hg_fetch() {
@@ -307,7 +261,6 @@ do_patch() {
             git apply --no-index "${patch}"
         done
     fi
-
 
     cp -r "${source_dir}" "${base_dir}"/sources/${name}-clean
 
@@ -724,6 +677,37 @@ cmd_install() {
         cp -rf pkgs/"${pkg}"/. "${sysroot}"/
     done
 }
+
+if ! [ -d "/jinx" ] && ! [ -d "$HOME/.cache/jinx" ]; then
+    echo "* preparing jinx for first use..."
+    mkdir -p "$HOME/.cache/jinx"
+
+    curl -L -o "$HOME/.cache/jinx/rbrt.c" https://raw.githubusercontent.com/mintsuki/jinx/trunk/rbrt.c
+    cc -O2 -pipe -Wall -Wextra "$HOME/.cache/jinx/rbrt.c" -o "$HOME/.cache/jinx/rbrt"
+
+    curl -L -o "$HOME/.cache/jinx/arch-root.tar.gz" https://mirror.netcologne.de/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.gz
+    ( cd "$HOME/.cache/jinx" && bsdtar -zxf arch-root.tar.gz )
+    mkdir -p "$HOME/.cache/jinx/sets"
+    mv "$HOME/.cache/jinx/root.x86_64" "$HOME/.cache/jinx/sets/.image"
+
+    ln -s /proc/self/fd/0 "$HOME/.cache/jinx/sets/.image/dev/stdin"
+    ln -s /proc/self/fd/1 "$HOME/.cache/jinx/sets/.image/dev/stdout"
+    ln -s /proc/self/fd/2 "$HOME/.cache/jinx/sets/.image/dev/stderr"
+    ln -s /proc/self/fd "$HOME/.cache/jinx/sets/.image/dev/fd"
+    touch "$HOME/.cache/jinx/sets/.image/dev/"{full,null,zero,tty,random,urandom}
+    mkdir "$HOME/.cache/jinx/sets/.image/dev/"{pts,shm}
+    echo 'Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch' > "$HOME/.cache/jinx/sets/.image/etc/pacman.d/mirrorlist"
+    echo 'en_US.UTF-8 UTF-8' > "$HOME/.cache/jinx/sets/.image/etc/locale.gen"
+    mkdir "$HOME/.cache/jinx/sets/.image/etc/pacman.d/gnupg"
+    mkdir "$HOME/.cache/jinx/sets/.image/"{sysroot,base_dir,jinx}
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- locale-gen
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman-key --init
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman-key --populate archlinux
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman --noconfirm -Syu
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman --needed --noconfirm -S bison diffutils flex gettext libtool m4 make patch perl texinfo which
+
+    echo "* done"
+fi
 
 case "$1" in
     internal-regenerate)
