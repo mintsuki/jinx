@@ -693,21 +693,20 @@ cmd_clean() {
     rm -rf "${base_dir}"/sysroot
 }
 
-cmd_sysroot() {
-    rm -rf "${base_dir}"/sysroot
-    mkdir -p "${base_dir}"/sysroot
-    for pkg in "${base_dir}"/pkgs/*; do
-        echo "* copying $(basename ${pkg}) to sysroot..."
-        cp -r "${pkg}"/. "${base_dir}"/sysroot/
-    done
-}
-
 cmd_install() {
     sysroot="$1"
     shift 1
     mkdir -p "${sysroot}"
 
     for ppkg in "$@"; do
+        if [ "${ppkg}" = '*' ]; then
+            for pkg in "${base_dir}"/pkgs/*; do
+                echo "* copying $(basename ${pkg}) to sysroot '${sysroot}'..."
+                cp -rf "${pkg}"/. "${sysroot}"/
+            done
+            return
+        fi
+
         for pkg in $(eval echo pkgs/"${ppkg}"); do
             deps="${deps} $(basename "${pkg}")"
         done
@@ -804,7 +803,7 @@ case "$1" in
         cmd_install "$@"
         ;;
     sysroot)
-        cmd_sysroot
+        cmd_install sysroot '*'
         ;;
     clean)
         cmd_clean
