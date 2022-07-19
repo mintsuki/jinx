@@ -57,7 +57,7 @@ temp_collect=""
 trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
 
 make_temp() {
-    tmp="$(mktemp $1)"
+    tmp="$(mktemp $1 "$HOME/.cache/jinx/tmp.XXXXXXXX")"
     temp_collect="${temp_collect} ${tmp}"
 }
 
