@@ -46,6 +46,8 @@ else
     JINX_CONFIG_FILE_PATH="${base_dir}"/"${JINX_CONFIG_FILE}"
 fi
 
+pacman_cache="$HOME/.cache/jinx/pacman"
+
 die() {
     echo $1
     exit 1
@@ -136,11 +138,11 @@ prepare_container() {
     sysroot_dir="${tmp}"
 
     for hostdep in $(cat "${hostdeps_file}"); do
-        cp -r "${base_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
+        cp -Plrf "${base_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
     done
 
     for dep in $(cat "${deps_file}"); do
-        cp -r "${base_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
+        cp -Plrf "${base_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
     done
 
     imagedeps="$(echo "${imagedeps}" | xargs -n1 | sort -u | xargs)"
@@ -155,10 +157,10 @@ prepare_container() {
 
         mkdir -p "$HOME/.cache/jinx/sets/${pkgset}"
 
-        cp -r "$HOME/.cache/jinx/sets/${pkgset}../.image" "$HOME/.cache/jinx/sets/${pkgset}.image"
-        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 -- pacman --noconfirm -Syu
+        cp -Plrf "$HOME/.cache/jinx/sets/${pkgset}../.image" "$HOME/.cache/jinx/sets/${pkgset}.image"
+        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --noconfirm -Syu
 
-        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 -- pacman --needed --noconfirm -S "${pkg}"
+        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --needed --noconfirm -S "${pkg}"
     done
 
     imgroot="$HOME/.cache/jinx/sets/${pkgset}.image"
@@ -682,6 +684,8 @@ if ! [ -d "/jinx" ] && ! [ -d "$HOME/.cache/jinx" ]; then
     echo "* preparing jinx for first use..."
     mkdir -p "$HOME/.cache/jinx"
 
+    mkdir -p "${pacman_cache}"
+
     curl -L -o "$HOME/.cache/jinx/rbrt.c" https://raw.githubusercontent.com/mintsuki/jinx/trunk/rbrt.c
     cc -O2 -pipe -Wall -Wextra "$HOME/.cache/jinx/rbrt.c" -o "$HOME/.cache/jinx/rbrt"
 
@@ -709,10 +713,10 @@ if ! [ -d "/jinx" ] && ! [ -d "$HOME/.cache/jinx" ]; then
     mkdir "$HOME/.cache/jinx/sets/.image/base_dir"
     mkdir "$HOME/.cache/jinx/sets/.image/jinx"
     "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- locale-gen
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman-key --init
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman-key --populate archlinux
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman --noconfirm -Syu
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman --needed --noconfirm -S bison diffutils flex gettext libtool m4 make patch perl texinfo which
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman-key --init
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman-key --populate archlinux
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --noconfirm -Syu
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --needed --noconfirm -S bison diffutils flex gettext libtool m4 make patch perl texinfo which
 
     echo "* done"
 fi
