@@ -694,12 +694,20 @@ if ! [ -d "/jinx" ] && ! [ -d "$HOME/.cache/jinx" ]; then
     ln -s /proc/self/fd/1 "$HOME/.cache/jinx/sets/.image/dev/stdout"
     ln -s /proc/self/fd/2 "$HOME/.cache/jinx/sets/.image/dev/stderr"
     ln -s /proc/self/fd "$HOME/.cache/jinx/sets/.image/dev/fd"
-    touch "$HOME/.cache/jinx/sets/.image/dev/"{full,null,zero,tty,random,urandom}
-    mkdir "$HOME/.cache/jinx/sets/.image/dev/"{pts,shm}
+    touch "$HOME/.cache/jinx/sets/.image/dev/full"
+    touch "$HOME/.cache/jinx/sets/.image/dev/null"
+    touch "$HOME/.cache/jinx/sets/.image/dev/zero"
+    touch "$HOME/.cache/jinx/sets/.image/dev/tty"
+    touch "$HOME/.cache/jinx/sets/.image/dev/random"
+    touch "$HOME/.cache/jinx/sets/.image/dev/urandom"
+    mkdir "$HOME/.cache/jinx/sets/.image/dev/pts"
+    mkdir "$HOME/.cache/jinx/sets/.image/dev/shm"
     echo 'Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch' > "$HOME/.cache/jinx/sets/.image/etc/pacman.d/mirrorlist"
     echo 'en_US.UTF-8 UTF-8' > "$HOME/.cache/jinx/sets/.image/etc/locale.gen"
     mkdir "$HOME/.cache/jinx/sets/.image/etc/pacman.d/gnupg"
-    mkdir "$HOME/.cache/jinx/sets/.image/"{sysroot,base_dir,jinx}
+    mkdir "$HOME/.cache/jinx/sets/.image/sysroot"
+    mkdir "$HOME/.cache/jinx/sets/.image/base_dir"
+    mkdir "$HOME/.cache/jinx/sets/.image/jinx"
     "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- locale-gen
     "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman-key --init
     "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- pacman-key --populate archlinux
