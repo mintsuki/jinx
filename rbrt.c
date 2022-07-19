@@ -238,6 +238,9 @@ int main(int argc, char *argv[]) {
             snprintf(target_path, PATH_MAX, "%s/dev/%s", rootfs, dev_overlays[i]);
 
             if (mount(source_path, target_path, NULL, MS_BIND, NULL) < 0) {
+                int tmp_errno = errno;
+                fprintf(stderr, "(source: %s, target: %s) ", source_path, target_path);
+                errno = tmp_errno;
                 err_msg = "mount() failure at line " TOSTRING(__LINE__);
                 goto errno_error;
             }
