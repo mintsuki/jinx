@@ -344,8 +344,6 @@ int main(int argc, char *argv[]) {
 
         __builtin_unreachable();
     } else {
-        printf("%s: init is %d (outside of namespace)\n", argv[0], child_pid);
-
         int exit_code = -1;
         if (waitpid(child_pid, &exit_code, 0) < 0) {
             err_msg = "waitpid() failure at line " TOSTRING(__LINE__);
