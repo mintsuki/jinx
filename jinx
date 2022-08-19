@@ -249,8 +249,13 @@ do_fetch() {
     esac
 }
 
-do_patch() {
-    [ -f "${base_dir}"/sources/${name}.patched ] && return
+cont_patch() {
+    . "${base_dir}"/source-recipes/$1
+
+    get_real_source_dir
+
+    patch_trash="/tmp/patch_trash"
+    mkdir -p "$patch_trash"
 
     cd "${source_dir}"
 
@@ -258,14 +263,14 @@ do_patch() {
         for patch in "${base_dir}"/patches/${name}/*; do
             [ "${patch}" = "${base_dir}/patches/${name}/*" ] && break
             [ "${patch}" = "${base_dir}"/patches/${name}/jinx-working-patch.patch ] && continue
-            git apply --no-index "${patch}"
+            patch --no-backup-if-mismatch -p1 -r "${patch_trash}" < "${patch}"
         done
     fi
 
     cp -r "${source_dir}" "${base_dir}"/sources/${name}-clean
 
     if [ -f "${base_dir}"/patches/${name}/jinx-working-patch.patch ]; then
-        git apply --no-index "${base_dir}"/patches/${name}/jinx-working-patch.patch
+        patch --no-backup-if-mismatch -p1 -r "${patch_trash}" < "${base_dir}"/patches/${name}/jinx-working-patch.patch
     fi
 
     cp -r "${source_dir}" "${base_dir}"/sources/${name}-workdir
@@ -463,13 +468,22 @@ do_install() {
     touch "${base_dir}"/builds/${name}.installed
 }
 
+precont_patch() {
+    [ -f "${base_dir}"/sources/$1.patched ] && return
+
+    prepare_container
+    run_in_container internal-cont-patch $1
+    destroy_container
+}
+
 do_source() {
     . "${base_dir}"/source-recipes/$1
 
     get_real_source_dir
 
     do_fetch
-    do_patch
+
+    "${script}" internal-precont-patch $1
 
     prepare_container
     run_in_container internal-regenerate $1
@@ -722,6 +736,12 @@ fi
 case "$1" in
     internal-regenerate)
         do_regenerate "$2"
+        ;;
+    internal-precont-patch)
+        precont_patch "$2"
+        ;;
+    internal-cont-patch)
+        cont_patch "$2"
         ;;
     internal-configure-host)
         do_configure_host "$2"
