@@ -25,6 +25,8 @@
 
 set -e
 
+jinx_version="0.0.15"
+
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 
 base_dir="$(pwd -P)"
@@ -694,7 +696,7 @@ cmd_install() {
     done
 }
 
-if ! [ -d "/jinx" ] && ! [ -d "$HOME/.cache/jinx" ]; then
+first_use() {
     echo "* preparing jinx for first use..."
     mkdir -p "$HOME/.cache/jinx"
 
@@ -733,7 +735,21 @@ if ! [ -d "/jinx" ] && ! [ -d "$HOME/.cache/jinx" ]; then
     "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --noconfirm -Syu
     "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --needed --noconfirm -S bison diffutils flex gettext libtool m4 make patch perl texinfo which
 
+    echo "$jinx_version" > "$HOME/.cache/jinx/version"
+
     echo "* done"
+}
+
+if ! [ -d "/jinx" ]; then
+    if ! [ -d "$HOME/.cache/jinx" ] || ! [ -f "$HOME/.cache/jinx/version" ]; then
+        first_use
+    fi
+
+    if ! [ "$(cat "$HOME/.cache/jinx/version")" = "$jinx_version" ]; then
+        chmod -R 777 "$HOME/.cache/jinx" || true
+        rm -rf "$HOME/.cache/jinx"
+        first_use
+    fi
 fi
 
 case "$1" in
