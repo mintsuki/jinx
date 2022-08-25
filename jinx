@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.15"
+jinx_version="0.0.16"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 
@@ -741,11 +741,11 @@ first_use() {
 }
 
 if ! [ -d "/jinx" ]; then
-    if ! [ -d "$HOME/.cache/jinx" ] || ! [ -f "$HOME/.cache/jinx/version" ]; then
+    if ! [ -d "$HOME/.cache/jinx" ]; then
         first_use
     fi
 
-    if ! [ "$(cat "$HOME/.cache/jinx/version")" = "$jinx_version" ]; then
+    if ! [ -f "$HOME/.cache/jinx/version" ] || ! [ "$(cat "$HOME/.cache/jinx/version")" = "$jinx_version" ]; then
         chmod -R 777 "$HOME/.cache/jinx" || true
         rm -rf "$HOME/.cache/jinx"
         first_use
