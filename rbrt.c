@@ -35,6 +35,8 @@ int main(int argc, char *argv[]) {
     int envs_size = 0;
 
     bool rw_root = false;
+    bool unshare_net = false;
+
     int uid = -1, gid = -1;
     int euid = geteuid();
     int egid = getegid();
@@ -137,6 +139,9 @@ int main(int argc, char *argv[]) {
 
             envs[env_count++] = argv[i + 1];
             i += 2;
+        } else if (strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "--net") == 0) {
+            unshare_net = true;
+            i += 1;
         } else if (strcmp(argv[i], "--") == 0) {
             if (i == argc - 1) {
                 fprintf(stderr, "%s: at least one trailing argument is required\n", argv[0]);
@@ -297,6 +302,11 @@ int main(int argc, char *argv[]) {
                 err_msg = "mount() failure at line " TOSTRING(__LINE__);
                 goto errno_error;
             }
+        }
+
+        if (unshare_net && unshare(CLONE_NEWNET) < 0) {
+            err_msg = "unshare() failure at line " TOSTRING(__LINE__);
+            goto errno_error;
         }
 
         if (chroot(rootfs) < 0) {
