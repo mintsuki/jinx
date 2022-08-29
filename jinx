@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.16"
+jinx_version="0.0.17-pre1"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 
@@ -169,6 +169,12 @@ prepare_container() {
 }
 
 run_in_container() {
+    if [ "${allow_network}" = "yes" ]; then
+        unshare_net_flag=""
+    else
+        unshare_net_flag="-n"
+    fi
+
     "$HOME/.cache/jinx/rbrt" \
         --root "${imgroot}" \
         --uid $(id -u) \
@@ -178,6 +184,7 @@ run_in_container() {
         --mount "${sysroot_dir}":/sysroot \
         --mount "${script_dir}":/jinx \
         --mount "${base_dir}":/base_dir \
+        ${unshare_net_flag} \
         -- \
         bash -c "cd /base_dir && /jinx/${script_name} $1 $2 $3 $4 $5"
 }
