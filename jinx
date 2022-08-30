@@ -51,7 +51,7 @@ fi
 pacman_cache="$HOME/.cache/jinx/pacman"
 
 die() {
-    echo $1
+    echo "$1"
     exit 1
 }
 
@@ -219,6 +219,31 @@ do_tarball_fetch() {
     tarball_path="${base_dir}"/sources/"$(basename "${tarball_url}")"
 
     curl -L -o "${tarball_path}" "${tarball_url}"
+
+    checksum_verified=no
+
+    if ! [ -z "${tarball_sha256}" ]; then
+        if ! sha256sum "${tarball_path}" | grep "${tarball_sha256}" >/dev/null 2>&1; then
+            die "* error: Failed to verify SHA256 for ${name}!"
+        fi
+        checksum_verified=yes
+    fi
+    if ! [ -z "${tarball_sha512}" ]; then
+        if ! sha512sum "${tarball_path}" | grep "${tarball_sha512}" >/dev/null 2>&1; then
+            die "* error: Failed to verify SHA512 for ${name}!"
+        fi
+        checksum_verified=yes
+    fi
+    if ! [ -z "${tarball_blake2b}" ]; then
+        if ! b2sum "${tarball_path}" | grep "${tarball_blake2b}" >/dev/null 2>&1; then
+            die "* error: Failed to verify BLAKE2B for ${name}!"
+        fi
+        checksum_verified=yes
+    fi
+
+    if [ "${checksum_verified}" = "no" ]; then
+        die "* error: No checksum method specified for ${name}"
+    fi
 
     ( cd "${extract_dir}" && tar -xf "${tarball_path}" )
 
