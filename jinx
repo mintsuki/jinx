@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.18"
+jinx_version="0.0.19"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 
@@ -74,7 +74,7 @@ build_hostdeps() {
 }
 
 build_deps() {
-    for dep in ${deps}; do
+    for dep in ${deps} ${builddeps}; do
         [ -f "${base_dir}"/recipes/${dep} ] || die "missing dependency '${dep}' for recipe '${name}'"
 
         [ -f "${base_dir}"/builds/${dep}.installed ] && continue
@@ -109,6 +109,19 @@ get_hostdeps_file() {
     done
 }
 
+get_builddeps_file() {
+    deps_to_do=""
+
+    for dep in ${deps} ${builddeps}; do
+        grep "${dep} " "${deps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${dep}"
+        grep "${dep} " "${deps_file}" >/dev/null 2>&1 || printf "${dep} " >> "${deps_file}"
+    done
+
+    for dep in ${deps_to_do}; do
+        "${script}" internal-get-deps-file ${dep} "${deps_file}"
+    done
+}
+
 get_deps_file() {
     deps_to_do=""
 
@@ -132,7 +145,7 @@ prepare_container() {
     build_deps
 
     get_hostdeps_file
-    get_deps_file
+    get_builddeps_file
 
     make_temp -d
     container_pkgs="${tmp}"
@@ -704,6 +717,12 @@ cmd_install() {
     for ppkg in "$@"; do
         if [ "${ppkg}" = '*' ]; then
             for pkg in "${base_dir}"/pkgs/*; do
+                add_to_sysroot=""
+                eval $(grep 'add_to_sysroot=' < "${base_dir}"/recipes/$(basename ${pkg}))
+                if [ "${add_to_sysroot}" = "no" ]; then
+                    continue
+                fi
+
                 echo "* copying $(basename ${pkg}) to sysroot '${sysroot}'..."
                 cp -rf "${pkg}"/. "${sysroot}"/
             done
