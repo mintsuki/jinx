@@ -142,6 +142,8 @@ get_deps_file() {
 }
 
 prepare_container() {
+    cd "${build_dir}"
+
     make_temp
     hostdeps_file="${tmp}"
     make_temp
