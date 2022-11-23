@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.19"
+jinx_version="0.0.20"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
