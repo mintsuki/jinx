@@ -28,8 +28,14 @@ set -e
 jinx_version="0.0.19"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
+build_dir="$(pwd -P)"
 
-base_dir="$(pwd -P)"
+if [ -z "$JINX_SOURCE_DIR" ]; then
+    base_dir="$build_dir"
+else
+    base_dir="$(cd "$JINX_SOURCE_DIR" && pwd -P)"
+fi
+
 script_name="$(basename "$0")"
 script_dir="$(dirname "$0")"
 if [ "$script_dir" = "." ] || [ -z "$script_dir" ]; then
@@ -67,7 +73,7 @@ build_hostdeps() {
     for hostdep in ${hostdeps} ${hostrundeps}; do
         [ -f "${base_dir}"/host-recipes/${hostdep} ] || die "missing host dependency '${hostdep}' for recipe '${name}'"
 
-        [ -f "${base_dir}"/host-builds/${hostdep}.installed ] && continue
+        [ -f "${build_dir}"/host-builds/${hostdep}.installed ] && continue
 
         "${script}" host-build ${hostdep}
     done
@@ -77,7 +83,7 @@ build_deps() {
     for dep in ${deps} ${builddeps}; do
         [ -f "${base_dir}"/recipes/${dep} ] || die "missing dependency '${dep}' for recipe '${name}'"
 
-        [ -f "${base_dir}"/builds/${dep}.installed ] && continue
+        [ -f "${build_dir}"/builds/${dep}.installed ] && continue
 
         "${script}" build ${dep}
     done
@@ -136,6 +142,8 @@ get_deps_file() {
 }
 
 prepare_container() {
+    cd "${build_dir}"
+
     make_temp
     hostdeps_file="${tmp}"
     make_temp
@@ -153,11 +161,11 @@ prepare_container() {
     sysroot_dir="${tmp}"
 
     for hostdep in $(cat "${hostdeps_file}"); do
-        cp -Plrf "${base_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
+        cp -Plrf "${build_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
     done
 
     for dep in $(cat "${deps_file}"); do
-        cp -Plrf "${base_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
+        cp -Plrf "${build_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
     done
 
     imagedeps="$(echo "${imagedeps}" | xargs -n1 | sort -u | xargs)"
@@ -197,9 +205,10 @@ run_in_container() {
         --mount "${sysroot_dir}":/sysroot \
         --mount "${script_dir}":/jinx \
         --mount "${base_dir}":/base_dir \
+        --mount "${build_dir}":/build_dir \
         ${unshare_net_flag} \
         -- \
-        bash -c "cd /base_dir && /jinx/${script_name} $1 $2 $3 $4 $5"
+        bash -c "cd /build_dir && JINX_SOURCE_DIR=/base_dir /jinx/${script_name} $1 $2 $3 $4 $5"
 }
 
 destroy_container() {
@@ -348,9 +357,9 @@ do_regenerate() {
 do_configure_host() {
     . "${base_dir}"/host-recipes/$1
 
-    [ -f "${base_dir}"/host-builds/${name}.configured ] && return
+    [ -f "${build_dir}"/host-builds/${name}.configured ] && return
 
-    mkdir -p "${base_dir}"/host-builds/${name}
+    mkdir -p "${build_dir}"/host-builds/${name}
 
     eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
@@ -364,17 +373,17 @@ do_configure_host() {
 
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
-    cd "${base_dir}"/host-builds/${name}
+    cd "${build_dir}"/host-builds/${name}
     configure
     cd "${base_dir}"
 
-    touch "${base_dir}"/host-builds/${name}.configured
+    touch "${build_dir}"/host-builds/${name}.configured
 }
 
 do_build_host() {
     . "${base_dir}"/host-recipes/$1
 
-    [ -f "${base_dir}"/host-builds/${name}.built ] && return
+    [ -f "${build_dir}"/host-builds/${name}.built ] && return
 
     eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
@@ -388,19 +397,19 @@ do_build_host() {
 
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
-    cd "${base_dir}"/host-builds/${name}
+    cd "${build_dir}"/host-builds/${name}
     build
     cd "${base_dir}"
 
-    touch "${base_dir}"/host-builds/${name}.built
+    touch "${build_dir}"/host-builds/${name}.built
 }
 
 do_install_host() {
     . "${base_dir}"/host-recipes/$1
 
-    [ -f "${base_dir}"/host-builds/${name}.installed ] && return
+    [ -f "${build_dir}"/host-builds/${name}.installed ] && return
 
-    dest_dir="${base_dir}"/host-pkgs/${name}
+    dest_dir="${build_dir}"/host-pkgs/${name}
 
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
@@ -419,7 +428,7 @@ do_install_host() {
 
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
-    cd "${base_dir}"/host-builds/${name}
+    cd "${build_dir}"/host-builds/${name}
     install
     cd "${base_dir}"
 
@@ -428,15 +437,15 @@ do_install_host() {
         rm -rvf $i
     done
 
-    touch "${base_dir}"/host-builds/${name}.installed
+    touch "${build_dir}"/host-builds/${name}.installed
 }
 
 do_configure() {
     . "${base_dir}"/recipes/$1
 
-    [ -f "${base_dir}"/builds/${name}.configured ] && return
+    [ -f "${build_dir}"/builds/${name}.configured ] && return
 
-    mkdir -p "${base_dir}"/builds/${name}
+    mkdir -p "${build_dir}"/builds/${name}
 
     eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
@@ -450,17 +459,17 @@ do_configure() {
 
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
-    cd "${base_dir}"/builds/${name}
+    cd "${build_dir}"/builds/${name}
     configure
     cd "${base_dir}"
 
-    touch "${base_dir}"/builds/${name}.configured
+    touch "${build_dir}"/builds/${name}.configured
 }
 
 do_build() {
     . "${base_dir}"/recipes/$1
 
-    [ -f "${base_dir}"/builds/${name}.built ] && return
+    [ -f "${build_dir}"/builds/${name}.built ] && return
 
     eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
@@ -474,19 +483,19 @@ do_build() {
 
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
-    cd "${base_dir}"/builds/${name}
+    cd "${build_dir}"/builds/${name}
     build
     cd "${base_dir}"
 
-    touch "${base_dir}"/builds/${name}.built
+    touch "${build_dir}"/builds/${name}.built
 }
 
 do_install() {
     . "${base_dir}"/recipes/$1
 
-    [ -f "${base_dir}"/builds/${name}.installed ] && return
+    [ -f "${build_dir}"/builds/${name}.installed ] && return
 
-    dest_dir="${base_dir}"/pkgs/${name}
+    dest_dir="${build_dir}"/pkgs/${name}
 
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
@@ -505,7 +514,7 @@ do_install() {
 
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
-    cd "${base_dir}"/builds/${name}
+    cd "${build_dir}"/builds/${name}
     install
     cd "${base_dir}"
 
@@ -514,7 +523,7 @@ do_install() {
         rm -rvf $i
     done
 
-    touch "${base_dir}"/builds/${name}.installed
+    touch "${build_dir}"/builds/${name}.installed
 }
 
 precont_patch() {
@@ -540,19 +549,19 @@ do_source() {
 }
 
 do_cmd_rebuild() {
-    rm -rf "${base_dir}"/builds/"$1"
-    rm -rf "${base_dir}"/builds/"$1".*
-    rm -rf "${base_dir}"/pkgs/"$1"
-    rm -rf "${base_dir}"/pkgs/"$1".*
+    rm -rf "${build_dir}"/builds/"$1"
+    rm -rf "${build_dir}"/builds/"$1".*
+    rm -rf "${build_dir}"/pkgs/"$1"
+    rm -rf "${build_dir}"/pkgs/"$1".*
 
     do_pkg "$1"
 }
 
 do_cmd_host_rebuild() {
-    rm -rf "${base_dir}"/host-builds/"$1"
-    rm -rf "${base_dir}"/host-builds/"$1".*
-    rm -rf "${base_dir}"/host-pkgs/"$1"
-    rm -rf "${base_dir}"/host-pkgs/"$1".*
+    rm -rf "${build_dir}"/host-builds/"$1"
+    rm -rf "${build_dir}"/host-builds/"$1".*
+    rm -rf "${build_dir}"/host-pkgs/"$1"
+    rm -rf "${build_dir}"/host-pkgs/"$1".*
 
     do_host_pkg "$1"
 }
@@ -627,7 +636,7 @@ do_cmd_regenerate() {
 do_host_pkg() {
     . "${base_dir}"/host-recipes/$1
 
-    [ -f "${base_dir}"/host-builds/${name}.installed ] && return
+    [ -f "${build_dir}"/host-builds/${name}.installed ] && return
 
     echo "* building host package: $name"
 
@@ -647,7 +656,7 @@ do_host_pkg() {
 do_pkg() {
     . "${base_dir}"/recipes/$1
 
-    [ -f "${base_dir}"/builds/${name}.installed ] && return
+    [ -f "${build_dir}"/builds/${name}.installed ] && return
 
     echo "* building package: $name"
 
@@ -701,12 +710,12 @@ cmd_rebuild() {
 }
 
 cmd_clean() {
-    rm -rf "${base_dir}"/builds
-    rm -rf "${base_dir}"/host-builds
-    rm -rf "${base_dir}"/pkgs
-    rm -rf "${base_dir}"/host-pkgs
+    rm -rf "${build_dir}"/builds
+    rm -rf "${build_dir}"/host-builds
+    rm -rf "${build_dir}"/pkgs
+    rm -rf "${build_dir}"/host-pkgs
     rm -rf "${base_dir}"/sources
-    rm -rf "${base_dir}"/sysroot
+    rm -rf "${build_dir}"/sysroot
 }
 
 cmd_install() {
@@ -716,7 +725,7 @@ cmd_install() {
 
     for ppkg in "$@"; do
         if [ "${ppkg}" = '*' ]; then
-            for pkg in "${base_dir}"/pkgs/*; do
+            for pkg in "${build_dir}"/pkgs/*; do
                 add_to_sysroot=""
                 eval $(grep 'add_to_sysroot=' < "${base_dir}"/recipes/$(basename ${pkg}))
                 if [ "${add_to_sysroot}" = "no" ]; then
@@ -778,6 +787,7 @@ first_use() {
     mkdir "$HOME/.cache/jinx/sets/.image/etc/pacman.d/gnupg"
     mkdir "$HOME/.cache/jinx/sets/.image/sysroot"
     mkdir "$HOME/.cache/jinx/sets/.image/base_dir"
+    mkdir "$HOME/.cache/jinx/sets/.image/build_dir"
     mkdir "$HOME/.cache/jinx/sets/.image/jinx"
     "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- locale-gen
     "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman-key --init
