@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.20"
+jinx_version="0.0.21"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
@@ -53,8 +53,6 @@ if [ -z "$JINX_CONFIG_FILE" ]; then
 else
     JINX_CONFIG_FILE_PATH="${base_dir}"/"${JINX_CONFIG_FILE}"
 fi
-
-pacman_cache="$HOME/.cache/jinx/pacman"
 
 die() {
     echo "$1"
@@ -181,9 +179,9 @@ prepare_container() {
         mkdir -p "$HOME/.cache/jinx/sets/${pkgset}"
 
         cp -Plrf "$HOME/.cache/jinx/sets/${pkgset}../.image" "$HOME/.cache/jinx/sets/${pkgset}.image"
-        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --noconfirm -Syu
+        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 -- apk update
 
-        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --needed --noconfirm -S "${pkg}"
+        "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/${pkgset}.image" rw --uid 0 --gid 0 -- apk add "${pkg}"
     done
 
     imgroot="$HOME/.cache/jinx/sets/${pkgset}.image"
@@ -760,8 +758,6 @@ first_use() {
     echo "* preparing jinx for first use..."
     mkdir -p "$HOME/.cache/jinx"
 
-    mkdir -p "${pacman_cache}"
-
     cat <<'EOF' >"$HOME/.cache/jinx/rbrt.c"
 // Written by czapek1337 (czapek1337@gmail.com)
 // Inspired heavily by https://github.com/managarm/cbuildrt/
@@ -1086,7 +1082,7 @@ int main(int argc, char *argv[]) {
 
         int child = fork();
         if (child == 0) {
-            setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl", 1);
+            setenv("PATH", "/usr/local/sbin:/usr/local/bin:/bin:/usr/bin:/usr/sbin:/sbin", 1);
 
             for (int i = 0; i < env_count; i++) {
                 char *key = envs[i];
@@ -1154,10 +1150,11 @@ cleanup:
 EOF
     cc -O2 -pipe -Wall -Wextra "$HOME/.cache/jinx/rbrt.c" -o "$HOME/.cache/jinx/rbrt"
 
-    curl -L -o "$HOME/.cache/jinx/arch-root.tar.gz" https://mirror.netcologne.de/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.gz
-    ( cd "$HOME/.cache/jinx" && bsdtar -zxf arch-root.tar.gz )
-    mkdir -p "$HOME/.cache/jinx/sets"
-    mv "$HOME/.cache/jinx/root.x86_64" "$HOME/.cache/jinx/sets/.image"
+    curl -L -o "$HOME/.cache/jinx/rootfs.tar.xz" https://eu.edge.kernel.org/alpine/edge/releases/x86_64/$(curl -L https://eu.edge.kernel.org/alpine/edge/releases/x86_64/latest-releases.yaml | grep 'x86_64.tar.gz' | head -n1 | sed 's/  file: //g')
+    mkdir -p "$HOME/.cache/jinx/sets/.image"
+    ( cd "$HOME/.cache/jinx/sets/.image" && tar -xf "$HOME/.cache/jinx/rootfs.tar.xz" )
+
+    touch "$HOME/.cache/jinx/sets/.image/etc/resolv.conf"
 
     ln -s /proc/self/fd/0 "$HOME/.cache/jinx/sets/.image/dev/stdin"
     ln -s /proc/self/fd/1 "$HOME/.cache/jinx/sets/.image/dev/stdout"
@@ -1171,19 +1168,19 @@ EOF
     touch "$HOME/.cache/jinx/sets/.image/dev/urandom"
     mkdir "$HOME/.cache/jinx/sets/.image/dev/pts"
     mkdir "$HOME/.cache/jinx/sets/.image/dev/shm"
-    echo 'Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch' > "$HOME/.cache/jinx/sets/.image/etc/pacman.d/mirrorlist"
-    echo 'en_US.UTF-8 UTF-8' > "$HOME/.cache/jinx/sets/.image/etc/locale.gen"
-    mkdir "$HOME/.cache/jinx/sets/.image/etc/pacman.d/gnupg"
+
+    cat <<'EOF' >"$HOME/.cache/jinx/sets/.image/etc/apk/repositories"
+https://eu.edge.kernel.org/alpine/edge/main
+https://eu.edge.kernel.org/alpine/edge/community
+https://eu.edge.kernel.org/alpine/edge/testing
+EOF
     mkdir "$HOME/.cache/jinx/sets/.image/sysroot"
     mkdir "$HOME/.cache/jinx/sets/.image/base_dir"
     mkdir "$HOME/.cache/jinx/sets/.image/build_dir"
     mkdir "$HOME/.cache/jinx/sets/.image/jinx"
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- locale-gen
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman-key --init
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman-key --populate archlinux
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --noconfirm -Sy archlinux-keyring
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --noconfirm -Syu
-    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --needed --noconfirm -S bison diffutils flex gettext inetutils libtool m4 make patch perl texinfo which
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- apk update
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- apk upgrade
+    "$HOME/.cache/jinx/rbrt" --root "$HOME/.cache/jinx/sets/.image" rw --uid 0 --gid 0 -- apk add alpine-base bash coreutils tzdata bison flex curl diffutils findutils sed grep gawk tar libarchive-tools gzip bzip2 xz zstd procps gettext-dev iputils libtool m4 make patch perl texinfo which libc-dev git
 
     echo "$jinx_version" > "$HOME/.cache/jinx/version"
 
