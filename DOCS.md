@@ -9,7 +9,7 @@ better.
 
 ## How Jinx works
 
-Jinx acts as a frontend for an Alpine container, interfaced thru a thinner layer
+Jinx acts as a frontend for an arch container, interfaced thru a thinner layer
 than docker. Sources and dependencies are moved in and out to ensure completely
 reproducible builds, since no leftover data can influence future builds, and
 portability, as no packages are needed to build apart of the container. 
