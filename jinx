@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.22"
+jinx_version="0.0.23"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
@@ -205,10 +205,11 @@ run_in_container() {
         --uid $(id -u) \
         --gid $(id -g) \
         --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
-        --mount "${container_pkgs}":/usr/local \
+        --mount "${container_pkgs}":/usr/local:ro \
         --mount "${sysroot_dir}":/sysroot \
-        --mount "${script_dir}":/jinx \
+        --mount "${script_dir}":/jinx:ro \
         --mount "${base_dir}":/base_dir \
+        --mount "${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
         --mount "${build_dir}":/build_dir \
         ${unshare_net_flag} \
         -- \
@@ -650,9 +651,11 @@ do_host_pkg() {
 
     prepare_container
 
+    container_sources_ro=":ro"
     run_in_container internal-configure-host $1
     run_in_container internal-build-host $1
     run_in_container internal-install-host $1
+    unset container_sources_ro
 
     destroy_container
 }
@@ -670,9 +673,11 @@ do_pkg() {
 
     prepare_container
 
+    container_sources_ro=":ro"
     run_in_container internal-configure $1
     run_in_container internal-build $1
     run_in_container internal-install $1
+    unset container_sources_ro
 
     destroy_container
 }
@@ -760,12 +765,7 @@ cmd_install() {
     done
 }
 
-first_use() {
-    echo "* preparing jinx for first use..."
-    mkdir -p "$JINX_CACHE_DIR"
-
-    mkdir -p "${pacman_cache}"
-
+rebuild_rbrt() {
     cat <<'EOF' >"$JINX_CACHE_DIR/rbrt.c"
 // Written by czapek1337 (czapek1337@gmail.com)
 // Inspired heavily by https://github.com/managarm/cbuildrt/
@@ -1066,10 +1066,28 @@ int main(int argc, char *argv[]) {
 
             *target++ = 0;
 
+            char *read_only = target;
+
+            while (*read_only && *read_only != ':') {
+                read_only++;
+            }
+
+            bool ro = false;
+            if (*read_only == ':') {
+                *read_only++ = 0;
+                ro = strcmp(read_only, "ro") == 0;
+            }
+
             snprintf(target_path, PATH_MAX, "%s/%s", rootfs, target);
-            if (mount(source, target_path, NULL, MS_BIND | MS_REC, NULL) < 0) {
+            if (mount(source, target_path, NULL, MS_BIND | (ro ? MS_RDONLY : 0), NULL) < 0) {
                 err_msg = "mount() failure at line " TOSTRING(__LINE__);
                 goto errno_error;
+            }
+            if (ro) {
+                if (mount(source, target_path, NULL, MS_REMOUNT | MS_BIND | MS_RDONLY, NULL) < 0) {
+                    err_msg = "mount() failure at line " TOSTRING(__LINE__);
+                    goto errno_error;
+                }
             }
         }
 
@@ -1157,6 +1175,15 @@ cleanup:
 }
 EOF
     cc -O2 -pipe -Wall -Wextra "$JINX_CACHE_DIR/rbrt.c" -o "$JINX_CACHE_DIR/rbrt"
+}
+
+first_use() {
+    echo "* preparing jinx for first use..."
+    mkdir -p "$JINX_CACHE_DIR"
+
+    mkdir -p "${pacman_cache}"
+
+    rebuild_rbrt
 
     curl -L -o "$JINX_CACHE_DIR/arch-root.tar.gz" https://mirror.netcologne.de/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.gz
     ( cd "$JINX_CACHE_DIR" && bsdtar -zxf arch-root.tar.gz )
@@ -1294,6 +1321,9 @@ case "$1" in
         ;;
     clean)
         cmd_clean
+        ;;
+    rbrt)
+        rebuild_rbrt
         ;;
     *)
         die "unknown command: $1"
