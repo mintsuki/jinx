@@ -206,9 +206,9 @@ run_in_container() {
         --gid $(id -g) \
         --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
         --mount "${container_pkgs}":/usr/local:ro \
-        --mount "${sysroot_dir}":/sysroot \
+        --mount "${sysroot_dir}":/sysroot:ro \
         --mount "${script_dir}":/jinx:ro \
-        --mount "${base_dir}":/base_dir \
+        --mount "${base_dir}":/base_dir:ro \
         --mount "${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
         --mount "${build_dir}":/build_dir \
         ${unshare_net_flag} \
