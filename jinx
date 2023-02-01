@@ -208,7 +208,7 @@ run_in_container() {
         --mount "${container_pkgs}":/usr/local:ro \
         --mount "${sysroot_dir}":/sysroot:ro \
         --mount "${script_dir}":/jinx:ro \
-        --mount "${base_dir}":/base_dir:ro \
+        --mount "${base_dir}":/base_dir${container_base_dir_ro} \
         --mount "${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
         --mount "${build_dir}":/build_dir \
         ${unshare_net_flag} \
@@ -353,7 +353,9 @@ do_regenerate() {
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${source_dir}"
+    [ "${is_local_package}" = true ] || container_base_dir_ro=":ro"
     regenerate
+    container_base_dir_ro=""
     cd "${base_dir}"
 
     touch "${base_dir}"/sources/${name}.regenerated
