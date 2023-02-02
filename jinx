@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# Copyright (c) 2022, mintsuki
+# Copyright (c) 2022-2023, mintsuki
 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.23"
+jinx_version="0.0.24"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
