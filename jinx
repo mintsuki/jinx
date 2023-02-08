@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.25"
+jinx_version="0.0.26"
 jinx_date="$(date +'%F')"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
@@ -221,25 +221,9 @@ destroy_container() {
     rm -rf "${container_pkgs}" "${sysroot_dir}"
 }
 
-do_hg_fetch() {
-    [ -d "${source_dir}" ] && return
-    hg clone ${clone_url} "${base_dir}"/sources/${name}
-    ( cd "${base_dir}"/sources/${name} && hg up ${tag} )
-}
+do_fetch() {
+    mkdir -p "${base_dir}"/sources
 
-do_git_fetch() {
-    [ -d "${source_dir}" ] && return
-    if ! [ -z "${commit}" ]; then
-        git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
-        ( cd "${base_dir}"/sources/${name} && git checkout ${commit} )
-    elif [ "${shallow}" = "no" ]; then
-        git clone ${clone_url} --branch=${tag} "${base_dir}"/sources/${name}
-    else
-        git clone ${clone_url} --branch=${tag} --depth=1 "${base_dir}"/sources/${name}
-    fi
-}
-
-do_tarball_fetch() {
     [ -d "${source_dir}" ] && return
 
     make_temp -d
@@ -275,7 +259,7 @@ do_tarball_fetch() {
 
     ( cd "${extract_dir}" && tar -xf "${tarball_path}" )
 
-    mv "${extract_dir}"/* "${base_dir}"/sources/${name} || (
+    mv "${extract_dir}"/* "${base_dir}"/sources/${name} >/dev/null 2>&1 || (
         mkdir -p "${base_dir}"/sources/${name}
         mv "${extract_dir}"/* "${base_dir}"/sources/${name}/
     )
@@ -284,33 +268,12 @@ do_tarball_fetch() {
 }
 
 get_real_source_dir() {
-    source_dir="${base_dir}"/"${source_dir}"
-    case ${source_method} in
-        tarball|git|mercurial)
-            source_dir="${base_dir}"/sources/${name}
-            ;;
-        *)
-            is_local_package=true
-            ;;
-    esac
-}
-
-do_fetch() {
-    mkdir -p "${base_dir}"/sources
-
-    case ${source_method} in
-        tarball)
-            do_tarball_fetch
-            ;;
-        git)
-            do_git_fetch
-            ;;
-        mercurial)
-            do_hg_fetch
-            ;;
-        *)
-            ;;
-    esac
+    if [ -z "${source_dir}" ]; then
+        source_dir="${base_dir}"/sources/${name}
+    else
+        source_dir="${base_dir}"/"${source_dir}"
+        is_local_package=true
+    fi
 }
 
 cont_patch() {
@@ -587,41 +550,7 @@ do_cmd_regenerate() {
     if ! [ "${is_local_package}" = true ]; then
         cd "${base_dir}"/sources
 
-        # exclude version control dirs
-        make_temp -d
-        vc_dir_clean="${tmp}"
-        rm -rf "${vc_dir_clean}"
-        make_temp -d
-        vc_dir_workdir="${tmp}"
-        rm -rf "${vc_dir_workdir}"
-
-        case "${source_method}" in
-            git)
-                mv $1-clean/.git "${vc_dir_clean}"
-                mv $1-workdir/.git "${vc_dir_workdir}"
-                ;;
-            mercurial)
-                mv $1-clean/.hg "${vc_dir_clean}"
-                mv $1-workdir/.hg "${vc_dir_workdir}"
-                ;;
-            *)
-                ;;
-        esac
-
         git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
-
-        case "${source_method}" in
-            git)
-                mv "${vc_dir_clean}" $1-clean/.git
-                mv "${vc_dir_workdir}" $1-workdir/.git
-                ;;
-            mercurial)
-                mv "${vc_dir_clean}" $1-clean/.hg
-                mv "${vc_dir_workdir}" $1-workdir/.hg
-                ;;
-            *)
-                ;;
-        esac
 
         if [ -s "${patch_file}" ]; then
             mkdir -p "${base_dir}"/patches/$1
