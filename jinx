@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.27"
+jinx_version="0.0.28"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
@@ -1116,6 +1116,7 @@ EOF
 }
 
 reinit_container() {
+    chmod -R 777 "$JINX_CACHE_DIR/sets" "$JINX_CACHE_DIR/pacman" || true
     rm -rf "$JINX_CACHE_DIR/arch-root.tar.gz" "$JINX_CACHE_DIR/sets" "$JINX_CACHE_DIR/pacman"
 
     mkdir -p "${pacman_cache}"
