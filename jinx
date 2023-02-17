@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.29"
+jinx_version="0.0.30"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
@@ -55,7 +55,7 @@ else
 fi
 
 if [ -z "$JINX_CACHE_DIR" ]; then
-    JINX_CACHE_DIR="$HOME/.cache/jinx"
+    JINX_CACHE_DIR="$build_dir/.jinx-cache"
 fi
 
 pacman_cache="$JINX_CACHE_DIR/pacman"
