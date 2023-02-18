@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.31"
+jinx_version="0.0.32"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
@@ -188,11 +188,27 @@ prepare_container() {
 
             cp -Plrf "$JINX_CACHE_DIR/sets/${pkgset}../.image" "$JINX_CACHE_DIR/sets/${pkgset}.image"
 
-            if ! "$JINX_CACHE_DIR/rbrt" --root "$JINX_CACHE_DIR/sets/${pkgset}.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --needed --noconfirm -S "${pkg}"; then
+            make_temp
+            pacman_log="${tmp}"
+
+            tail -f "${pacman_log}" &
+            tail_pid=$!
+
+            if ! "$JINX_CACHE_DIR/rbrt" --root "$JINX_CACHE_DIR/sets/${pkgset}.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --needed --noconfirm -S "${pkg}" >"${pacman_log}" 2>&1; then
+                kill "${tail_pid}"
+                if grep "target not found" "${pacman_log}" >/dev/null 2>&1; then
+                    rm -f "${pacman_log}"
+                    chmod -R 777 "$JINX_CACHE_DIR/sets/${pkgset}"
+                    rm -rf "$JINX_CACHE_DIR/sets/${pkgset}"
+                    die
+                fi
+                rm -f "${pacman_log}"
                 reinit_container
                 fail_check=on
                 break
             fi
+            kill "${tail_pid}"
+            rm -f "${pacman_log}"
 
             # Fix permissions of files
             for f in $(find "$JINX_CACHE_DIR/sets/${pkgset}.image" -perm 000 2>/dev/null); do
