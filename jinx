@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.32"
+jinx_version="0.0.33"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
@@ -1067,7 +1067,40 @@ int main(int argc, char *argv[]) {
 
         int child = fork();
         if (child == 0) {
+            char *old_term = NULL;
+            if (getenv("TERM") != NULL) {
+                old_term = malloc(strlen(getenv("TERM")) + 1);
+                if (old_term == NULL) {
+                    err_msg = "malloc() failure at line " TOSTRING(__LINE__);
+                    goto errno_error;
+                }
+                strcpy(old_term, getenv("TERM"));
+            }
+
+            char *old_colorterm = NULL;
+            if (getenv("COLORTERM") != NULL) {
+                old_colorterm = malloc(strlen(getenv("COLORTERM")) + 1);
+                if (old_colorterm == NULL) {
+                    err_msg = "malloc() failure at line " TOSTRING(__LINE__);
+                    goto errno_error;
+                }
+                strcpy(old_colorterm, getenv("COLORTERM"));
+            }
+
+            clearenv();
+
+            setenv("HOME", "/root", 1);
+            setenv("LANG", "en_US.UTF-8", 1);
+            setenv("LC_COLLATE", "C", 1);
             setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl", 1);
+            if (old_term != NULL) {
+                setenv("TERM", old_term, 1);
+                free(old_term);
+            }
+            if (old_colorterm != NULL) {
+                setenv("COLORTERM", old_colorterm, 1);
+                free(old_colorterm);
+            }
 
             for (int i = 0; i < env_count; i++) {
                 char *key = envs[i];
