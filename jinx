@@ -25,7 +25,13 @@
 
 set -e
 
-jinx_version="0.0.34"
+jinx_version="0.0.35"
+
+IFS=" ""  "'
+'
+
+LC_COLLATE=C
+export LC_COLLATE
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
@@ -146,8 +152,12 @@ get_deps_file() {
 }
 
 run_in_container1() {
+    if ! [ -z "$TERM" ]; then
+        run_in_cont1_term="--env TERM=\"$TERM\""
+    fi
+
     if ! [ -z "$COLORTERM" ]; then
-        colorterm="--env COLORTERM=\"$COLORTERM\""
+        run_in_cont1_colorterm="--env COLORTERM=\"$COLORTERM\""
     fi
 
     run_in_cont1_root="$1"
@@ -161,8 +171,8 @@ run_in_container1() {
         --env LANG=en_US.UTF-8 \
         --env LC_COLLATE=C \
         --env PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl \
-        --env TERM="$TERM" \
-        $colorterm \
+        ${run_in_cont1_term} \
+        ${run_in_cont1_colorterm} \
         --mount "${pacman_cache}":/var/cache/pacman/pkg \
         -- \
         "$@"
@@ -251,8 +261,12 @@ run_in_container() {
         unshare_net_flag="-n"
     fi
 
+    if [ ! -z "$TERM" ]; then
+        run_in_cont_term="--env TERM=\"$TERM\""
+    fi
+
     if ! [ -z "$COLORTERM" ]; then
-        colorterm="--env COLORTERM=\"$COLORTERM\""
+        run_in_cont_colorterm="--env COLORTERM=\"$COLORTERM\""
     fi
 
     "$JINX_CACHE_DIR/rbrt" \
@@ -263,13 +277,13 @@ run_in_container() {
         --env LANG=en_US.UTF-8 \
         --env LC_COLLATE=C \
         --env PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl \
-        --env TERM="$TERM" \
-        $colorterm \
+        ${run_in_cont_term} \
+        ${run_in_cont_colorterm} \
         --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
         --env JINX_SOURCE_DIR=/base_dir \
         --mount "${container_pkgs}":/usr/local:ro \
         --mount "${sysroot_dir}":/sysroot:ro \
-        --mount "${script_dir}/${script_name}":/jinx:ro \
+        --mount "${script}":/jinx:ro \
         --mount "${base_dir}":/base_dir${container_base_dir_ro} \
         --mount "${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
         --mount "${build_dir}":/build_dir \
@@ -1220,6 +1234,7 @@ reinit_container() {
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --needed --noconfirm -S reflector
     echo "* updating Arch mirrors..."
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" reflector --latest 6 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Syu
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --needed --noconfirm -S bison diffutils flex gettext inetutils libtool m4 make patch perl python texinfo which
 
     # Fix permissions of files
@@ -1249,14 +1264,12 @@ redo_first_use() {
     first_use
 }
 
-if ! [ -d "/jinx" ]; then
-    if ! [ -d "$JINX_CACHE_DIR" ]; then
-        first_use
-    fi
+if ! [ -d "$JINX_CACHE_DIR" ]; then
+    first_use
+fi
 
-    if ! [ -f "$JINX_CACHE_DIR/version" ] || ! [ "$(cat "$JINX_CACHE_DIR/version")" = "$jinx_version" ]; then
-        redo_first_use
-    fi
+if ! [ -f "$JINX_CACHE_DIR/version" ] || ! [ "$(cat "$JINX_CACHE_DIR/version")" = "$jinx_version" ]; then
+    redo_first_use
 fi
 
 case "$1" in
