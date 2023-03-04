@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.33"
+jinx_version="0.0.34"
 
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
 build_dir="$(pwd -P)"
@@ -145,6 +145,29 @@ get_deps_file() {
     done
 }
 
+run_in_container1() {
+    if ! [ -z "$COLORTERM" ]; then
+        colorterm="--env COLORTERM=\"$COLORTERM\""
+    fi
+
+    run_in_cont1_root="$1"
+    shift 1
+
+    "$JINX_CACHE_DIR/rbrt" \
+        --root "$run_in_cont1_root" rw \
+        --uid 0 \
+        --gid 0 \
+        --env HOME=/root \
+        --env LANG=en_US.UTF-8 \
+        --env LC_COLLATE=C \
+        --env PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl \
+        --env TERM="$TERM" \
+        $colorterm \
+        --mount "${pacman_cache}":/var/cache/pacman/pkg \
+        -- \
+        "$@"
+}
+
 prepare_container() {
     cd "${build_dir}"
 
@@ -194,7 +217,7 @@ prepare_container() {
             tail -f "${pacman_log}" &
             tail_pid=$!
 
-            if ! "$JINX_CACHE_DIR/rbrt" --root "$JINX_CACHE_DIR/sets/${pkgset}.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --needed --noconfirm -S "${pkg}" >"${pacman_log}" 2>&1; then
+            if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}" >"${pacman_log}" 2>&1; then
                 kill "${tail_pid}"
                 if grep "target not found" "${pacman_log}" >/dev/null 2>&1; then
                     rm -f "${pacman_log}"
@@ -228,20 +251,32 @@ run_in_container() {
         unshare_net_flag="-n"
     fi
 
+    if ! [ -z "$COLORTERM" ]; then
+        colorterm="--env COLORTERM=\"$COLORTERM\""
+    fi
+
     "$JINX_CACHE_DIR/rbrt" \
         --root "${imgroot}" \
         --uid $(id -u) \
         --gid $(id -g) \
+        --env HOME=/root \
+        --env LANG=en_US.UTF-8 \
+        --env LC_COLLATE=C \
+        --env PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl \
+        --env TERM="$TERM" \
+        $colorterm \
         --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
+        --env JINX_SOURCE_DIR=/base_dir \
         --mount "${container_pkgs}":/usr/local:ro \
         --mount "${sysroot_dir}":/sysroot:ro \
-        --mount "${script_dir}":/jinx:ro \
+        --mount "${script_dir}/${script_name}":/jinx:ro \
         --mount "${base_dir}":/base_dir${container_base_dir_ro} \
         --mount "${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
         --mount "${build_dir}":/build_dir \
         ${unshare_net_flag} \
+        --workdir /build_dir \
         -- \
-        bash -c "cd /build_dir && JINX_SOURCE_DIR=/base_dir /jinx/${script_name} $1 $2 $3 $4 $5"
+        /jinx "$@"
 }
 
 destroy_container() {
@@ -773,8 +808,13 @@ int main(int argc, char *argv[]) {
     int uid_map_fd = -1;
     int gid_map_fd = -1;
 
+    char *workdir = "/";
+
     for (int i = 1; i < argc; ) {
-        if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--root") == 0) {
+        if (strcmp(argv[i], "--workdir") == 0) {
+            workdir = argv[i + 1];
+            i += 2;
+        } else if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--root") == 0) {
             if (i == argc - 1) {
                 fprintf(stderr, "%s: '%s' requires a value\n", argv[0], argv[i]);
                 goto cleanup;
@@ -1037,7 +1077,7 @@ int main(int argc, char *argv[]) {
                 ro = strcmp(read_only, "ro") == 0;
             }
 
-            snprintf(target_path, PATH_MAX, "%s/%s", rootfs, target);
+            snprintf(target_path, PATH_MAX, "%s%s", rootfs, target);
             if (mount(source, target_path, NULL, MS_BIND | (ro ? MS_RDONLY : 0), NULL) < 0) {
                 err_msg = "mount() failure at line " TOSTRING(__LINE__);
                 goto errno_error;
@@ -1060,47 +1100,18 @@ int main(int argc, char *argv[]) {
             goto errno_error;
         }
 
-        if (chdir("/") < 0) {
+        if (chdir(workdir) < 0) {
             err_msg = "chdir() failure at line " TOSTRING(__LINE__);
             goto errno_error;
         }
 
         int child = fork();
         if (child == 0) {
-            char *old_term = NULL;
-            if (getenv("TERM") != NULL) {
-                old_term = malloc(strlen(getenv("TERM")) + 1);
-                if (old_term == NULL) {
-                    err_msg = "malloc() failure at line " TOSTRING(__LINE__);
-                    goto errno_error;
-                }
-                strcpy(old_term, getenv("TERM"));
-            }
-
-            char *old_colorterm = NULL;
-            if (getenv("COLORTERM") != NULL) {
-                old_colorterm = malloc(strlen(getenv("COLORTERM")) + 1);
-                if (old_colorterm == NULL) {
-                    err_msg = "malloc() failure at line " TOSTRING(__LINE__);
-                    goto errno_error;
-                }
-                strcpy(old_colorterm, getenv("COLORTERM"));
-            }
-
             clearenv();
 
             setenv("HOME", "/root", 1);
-            setenv("LANG", "en_US.UTF-8", 1);
-            setenv("LC_COLLATE", "C", 1);
-            setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl", 1);
-            if (old_term != NULL) {
-                setenv("TERM", old_term, 1);
-                free(old_term);
-            }
-            if (old_colorterm != NULL) {
-                setenv("COLORTERM", old_colorterm, 1);
-                free(old_colorterm);
-            }
+            setenv("LANG", "C", 1);
+            setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", 1);
 
             for (int i = 0; i < env_count; i++) {
                 char *key = envs[i];
@@ -1199,13 +1210,17 @@ reinit_container() {
     mkdir "$JINX_CACHE_DIR/sets/.image/sysroot"
     mkdir "$JINX_CACHE_DIR/sets/.image/base_dir"
     mkdir "$JINX_CACHE_DIR/sets/.image/build_dir"
-    mkdir "$JINX_CACHE_DIR/sets/.image/jinx"
-    "$JINX_CACHE_DIR/rbrt" --root "$JINX_CACHE_DIR/sets/.image" rw --uid 0 --gid 0 -- locale-gen
-    "$JINX_CACHE_DIR/rbrt" --root "$JINX_CACHE_DIR/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman-key --init
-    "$JINX_CACHE_DIR/rbrt" --root "$JINX_CACHE_DIR/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman-key --populate archlinux
-    "$JINX_CACHE_DIR/rbrt" --root "$JINX_CACHE_DIR/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --noconfirm -Sy archlinux-keyring
-    "$JINX_CACHE_DIR/rbrt" --root "$JINX_CACHE_DIR/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --noconfirm -Syu
-    "$JINX_CACHE_DIR/rbrt" --root "$JINX_CACHE_DIR/sets/.image" rw --uid 0 --gid 0 --mount "${pacman_cache}":/var/cache/pacman/pkg -- pacman --needed --noconfirm -S bison diffutils flex gettext inetutils libtool m4 make patch perl texinfo which
+    touch "$JINX_CACHE_DIR/sets/.image/jinx"
+    chmod +x "$JINX_CACHE_DIR/sets/.image/jinx"
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" locale-gen
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --init
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --populate archlinux
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Sy archlinux-keyring
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Syu
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --needed --noconfirm -S reflector
+    echo "* updating Arch mirrors..."
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" reflector --latest 6 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --needed --noconfirm -S bison diffutils flex gettext inetutils libtool m4 make patch perl python texinfo which
 
     # Fix permissions of files
     for f in $(find "$JINX_CACHE_DIR/sets/.image" -perm 000 2>/dev/null); do
