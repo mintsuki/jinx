@@ -25,9 +25,9 @@
 
 set -e
 
-jinx_version="0.0.35"
+jinx_version="0.0.36"
 
-IFS=" ""  "'
+IFS=" ""	"'
 '
 
 LC_COLLATE=C
