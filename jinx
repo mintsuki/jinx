@@ -1015,23 +1015,7 @@ int main(int argc, char *argv[]) {
             goto errno_error;
         }
 
-        char *dev_overlays[] = { "tty", "null", "zero", "full", "random", "urandom" };
         char target_path[PATH_MAX];
-
-        for (size_t i = 0; i < sizeof(dev_overlays) / sizeof(char *); i++) {
-            char source_path[PATH_MAX];
-
-            snprintf(source_path, PATH_MAX, "/dev/%s", dev_overlays[i]);
-            snprintf(target_path, PATH_MAX, "%s/dev/%s", rootfs, dev_overlays[i]);
-
-            if (mount(source_path, target_path, NULL, MS_BIND, NULL) < 0) {
-                int tmp_errno = errno;
-                fprintf(stderr, "(source: %s, target: %s) ", source_path, target_path);
-                errno = tmp_errno;
-                err_msg = "mount() failure at line " TOSTRING(__LINE__);
-                goto errno_error;
-            }
-        }
 
         snprintf(target_path, PATH_MAX, "%s/etc/resolv.conf", rootfs);
         if (mount("/etc/resolv.conf", target_path, NULL, MS_BIND, NULL) < 0) {
@@ -1039,14 +1023,14 @@ int main(int argc, char *argv[]) {
             goto errno_error;
         }
 
-        snprintf(target_path, PATH_MAX, "%s/dev/pts", rootfs);
-        if (mount(NULL, target_path, "devpts", 0, NULL) < 0) {
+        snprintf(target_path, PATH_MAX, "%s/dev", rootfs);
+        if (mount("/dev", target_path, NULL, MS_REC | MS_BIND | MS_SLAVE, NULL) < 0) {
             err_msg = "mount() failure at line " TOSTRING(__LINE__);
             goto errno_error;
         }
 
-        snprintf(target_path, PATH_MAX, "%s/dev/shm", rootfs);
-        if (mount(NULL, target_path, "tmpfs",  0, NULL) < 0) {
+        snprintf(target_path, PATH_MAX, "%s/sys", rootfs);
+        if (mount("/sys", target_path, NULL, MS_REC | MS_BIND | MS_SLAVE, NULL) < 0) {
             err_msg = "mount() failure at line " TOSTRING(__LINE__);
             goto errno_error;
         }
@@ -1206,18 +1190,6 @@ reinit_container() {
     mkdir -p "$JINX_CACHE_DIR/sets"
     mv "$JINX_CACHE_DIR/root.x86_64" "$JINX_CACHE_DIR/sets/.image"
 
-    ln -s /proc/self/fd/0 "$JINX_CACHE_DIR/sets/.image/dev/stdin"
-    ln -s /proc/self/fd/1 "$JINX_CACHE_DIR/sets/.image/dev/stdout"
-    ln -s /proc/self/fd/2 "$JINX_CACHE_DIR/sets/.image/dev/stderr"
-    ln -s /proc/self/fd "$JINX_CACHE_DIR/sets/.image/dev/fd"
-    touch "$JINX_CACHE_DIR/sets/.image/dev/full"
-    touch "$JINX_CACHE_DIR/sets/.image/dev/null"
-    touch "$JINX_CACHE_DIR/sets/.image/dev/zero"
-    touch "$JINX_CACHE_DIR/sets/.image/dev/tty"
-    touch "$JINX_CACHE_DIR/sets/.image/dev/random"
-    touch "$JINX_CACHE_DIR/sets/.image/dev/urandom"
-    mkdir "$JINX_CACHE_DIR/sets/.image/dev/pts"
-    mkdir "$JINX_CACHE_DIR/sets/.image/dev/shm"
     echo 'Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch' > "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
     echo 'en_US.UTF-8 UTF-8' > "$JINX_CACHE_DIR/sets/.image/etc/locale.gen"
     mkdir "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/gnupg"
