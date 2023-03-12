@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.38"
+jinx_version="0.0.40"
 
 IFS=" ""	"'
 '
@@ -1239,6 +1239,17 @@ redo_first_use() {
     first_use
 }
 
+case "$1" in
+    version|--version)
+        echo "Jinx version $jinx_version"
+        exit 0
+        ;;
+esac
+
+if ! [ -f "$JINX_CONFIG_FILE_PATH" ]; then
+    die "$0: missing Jinx config file in source directory $base_dir"
+fi
+
 if ! [ -d "$JINX_CACHE_DIR" ]; then
     first_use
 fi
@@ -1340,6 +1351,10 @@ case "$1" in
         rebuild_rbrt
         ;;
     *)
-        die "unknown command: $1"
+        if [ -z "$1" ]; then
+            die "$0: no command specified."
+        else
+            die "$0: unknown command: $1"
+        fi
         ;;
 esac
