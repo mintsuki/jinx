@@ -311,20 +311,29 @@ do_fetch() {
     checksum_verified=no
 
     if ! [ -z "${tarball_sha256}" ]; then
-        if ! sha256sum "${tarball_path}" | grep "${tarball_sha256}" >/dev/null 2>&1; then
-            die "* error: Failed to verify SHA256 for ${name}!"
+        actual_sha256="$(sha256sum "${tarball_path}" | awk '{print $1;}')"
+        if ! [ ${actual_sha256} = ${tarball_sha256} ]; then
+            die "* error: Failed to verify SHA256 for ${name}.
+  Expected '${tarball_sha256}';
+  got '${actual_sha256}'."
         fi
         checksum_verified=yes
     fi
     if ! [ -z "${tarball_sha512}" ]; then
-        if ! sha512sum "${tarball_path}" | grep "${tarball_sha512}" >/dev/null 2>&1; then
-            die "* error: Failed to verify SHA512 for ${name}!"
+        actual_sha512="$(sha512sum "${tarball_path}" | awk '{print $1;}')"
+        if ! [ ${actual_sha512} = ${tarball_sha512} ]; then
+            die "* error: Failed to verify SHA512 for ${name}.
+  Expected '${tarball_sha512}';
+  got '${actual_sha512}'."
         fi
         checksum_verified=yes
     fi
     if ! [ -z "${tarball_blake2b}" ]; then
-        if ! b2sum "${tarball_path}" | grep "${tarball_blake2b}" >/dev/null 2>&1; then
-            die "* error: Failed to verify BLAKE2B for ${name}!"
+        actual_blake2b="$(b2sum "${tarball_path}" | awk '{print $1;}')"
+        if ! [ ${actual_blake2b} = ${tarball_blake2b} ]; then
+            die "* error: Failed to verify BLAKE2B for ${name}.
+  Expected '${tarball_blake2b}';
+  got '${actual_blake2b}'."
         fi
         checksum_verified=yes
     fi
