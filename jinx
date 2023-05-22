@@ -222,6 +222,11 @@ prepare_container() {
         if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"; then
             die 'Jinx error: Installing an imagedep failed. If the error is not due to a non-existant package, try running `jinx rebuild-cache` and try again.'
         fi
+
+        # Fix permissions of files
+        for f in $(find "$JINX_CACHE_DIR/sets/${pkgset}.image" -perm 000 2>/dev/null); do
+            chmod 755 "$f"
+        done
     done
 
     imgroot="$JINX_CACHE_DIR/sets/${pkgset}.image"
