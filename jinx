@@ -1211,6 +1211,7 @@ reinit_container() {
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --init
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --populate archlinux
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Sy archlinux-keyring
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -S pacman pacman-mirrorlist
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Syu
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --needed --noconfirm -S reflector
     echo "* updating Arch mirrors..."
