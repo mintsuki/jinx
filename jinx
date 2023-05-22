@@ -219,7 +219,9 @@ prepare_container() {
 
         cp -Plrf "$JINX_CACHE_DIR/sets/${pkgset}../.image" "$JINX_CACHE_DIR/sets/${pkgset}.image"
 
-        run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"
+        if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"; then
+            die 'Jinx error: Installing an imagedep failed. If the error is not due to a non-existant package, try running `jinx rebuild-cache` and try again.'
+        fi
     done
 
     imgroot="$JINX_CACHE_DIR/sets/${pkgset}.image"
@@ -1200,7 +1202,7 @@ reinit_container() {
 }
 
 first_use() {
-    echo "* preparing Jinx for first use..."
+    echo "* preparing Jinx cache..."
 
     mkdir -p "$JINX_CACHE_DIR"
 
@@ -1214,7 +1216,7 @@ first_use() {
 }
 
 redo_first_use() {
-    echo "* purging Jinx cache..."
+    echo "* purging old Jinx cache..."
     chmod -R 777 "$JINX_CACHE_DIR" || true
     rm -rf "$JINX_CACHE_DIR"
     first_use
@@ -1330,6 +1332,9 @@ case "$1" in
         ;;
     rbrt)
         rebuild_rbrt
+        ;;
+    rebuild-cache)
+        redo_first_use
         ;;
     *)
         if [ -z "$1" ]; then
