@@ -221,27 +221,11 @@ prepare_container() {
 
             cp -Plrf "$JINX_CACHE_DIR/sets/${pkgset}../.image" "$JINX_CACHE_DIR/sets/${pkgset}.image"
 
-            make_temp
-            pacman_log="${tmp}"
-
-            tail -f "${pacman_log}" &
-            tail_pid=$!
-
-            if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}" >"${pacman_log}" 2>&1; then
-                kill "${tail_pid}"
-                if grep "target not found" "${pacman_log}" >/dev/null 2>&1; then
-                    rm -f "${pacman_log}"
-                    chmod -R 777 "$JINX_CACHE_DIR/sets/${pkgset}"
-                    rm -rf "$JINX_CACHE_DIR/sets/${pkgset}"
-                    die
-                fi
-                rm -f "${pacman_log}"
+            if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"; then
                 reinit_container
                 fail_check=on
                 break
             fi
-            kill "${tail_pid}"
-            rm -f "${pacman_log}"
 
             # Fix permissions of files
             for f in $(find "$JINX_CACHE_DIR/sets/${pkgset}.image" -perm 000 2>/dev/null); do
