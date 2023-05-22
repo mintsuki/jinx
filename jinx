@@ -207,32 +207,19 @@ prepare_container() {
 
     imagedeps="$(echo "${imagedeps}" | xargs -n1 | sort -u | xargs)"
 
-    while true; do
-        fail_check=""
-        pkgset=""
-        for pkg in ${imagedeps}; do
-            pkgset="${pkgset}${pkg}/"
+    pkgset=""
+    for pkg in ${imagedeps}; do
+        pkgset="${pkgset}${pkg}/"
 
-            if [ -d "$JINX_CACHE_DIR/sets/${pkgset}.image" ]; then
-                continue
-            fi
+        if [ -d "$JINX_CACHE_DIR/sets/${pkgset}.image" ]; then
+            continue
+        fi
 
-            mkdir -p "$JINX_CACHE_DIR/sets/${pkgset}"
+        mkdir -p "$JINX_CACHE_DIR/sets/${pkgset}"
 
-            cp -Plrf "$JINX_CACHE_DIR/sets/${pkgset}../.image" "$JINX_CACHE_DIR/sets/${pkgset}.image"
+        cp -Plrf "$JINX_CACHE_DIR/sets/${pkgset}../.image" "$JINX_CACHE_DIR/sets/${pkgset}.image"
 
-            if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"; then
-                reinit_container
-                fail_check=on
-                break
-            fi
-
-            # Fix permissions of files
-            for f in $(find "$JINX_CACHE_DIR/sets/${pkgset}.image" -perm 000 2>/dev/null); do
-                chmod 755 "$f"
-            done
-        done
-        [ "$fail_check" = "on" ] || break
+        run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"
     done
 
     imgroot="$JINX_CACHE_DIR/sets/${pkgset}.image"
