@@ -25,7 +25,7 @@
 
 set -e
 
-jinx_version="0.0.40"
+jinx_version="0.1.0"
 
 IFS=" ""	"'
 '
