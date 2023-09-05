@@ -33,7 +33,9 @@ IFS=" ""	"'
 LC_COLLATE=C
 export LC_COLLATE
 
+max_threads_by_mem="$(( $(free | awk '/^Mem:/{print $2}') / 1024 / 1024 ))"
 parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
+parallelism="$(( $parallelism < $max_threads_by_mem ? $parallelism : $max_threads_by_mem ))"
 build_dir="$(pwd -P)"
 
 if [ -z "$JINX_SOURCE_DIR" ]; then
