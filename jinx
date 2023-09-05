@@ -1172,16 +1172,12 @@ reinit_container() {
 
     mkdir -p "${pacman_cache}"
 
-    curl -L -o "$JINX_CACHE_DIR/arch-root.tar.gz" https://mirror.netcologne.de/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.gz
+    curl -L -o "$JINX_CACHE_DIR/arch-root.tar.gz" https://mirror.osbeck.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.gz
     ( cd "$JINX_CACHE_DIR" && bsdtar -zxf arch-root.tar.gz )
     mkdir -p "$JINX_CACHE_DIR/sets"
     mv "$JINX_CACHE_DIR/root.x86_64" "$JINX_CACHE_DIR/sets/.image"
 
-    if [ -f /etc/pacman.d/mirrorlist ]; then
-        cp /etc/pacman.d/mirrorlist "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
-    else
-        echo 'Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch' > "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
-    fi
+    echo 'Server = https://mirror.osbeck.com/archlinux/$repo/os/$arch' > "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
     echo 'en_US.UTF-8 UTF-8' > "$JINX_CACHE_DIR/sets/.image/etc/locale.gen"
     mkdir "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/gnupg"
     mkdir "$JINX_CACHE_DIR/sets/.image/sysroot"
