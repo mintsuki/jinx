@@ -1177,7 +1177,11 @@ reinit_container() {
     mkdir -p "$JINX_CACHE_DIR/sets"
     mv "$JINX_CACHE_DIR/root.x86_64" "$JINX_CACHE_DIR/sets/.image"
 
-    echo 'Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch' > "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
+    if [ -f /etc/pacman.d/mirrorlist ]; then
+        cp /etc/pacman.d/mirrorlist "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
+    else
+        echo 'Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch' > "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
+    fi
     echo 'en_US.UTF-8 UTF-8' > "$JINX_CACHE_DIR/sets/.image/etc/locale.gen"
     mkdir "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/gnupg"
     mkdir "$JINX_CACHE_DIR/sets/.image/sysroot"
