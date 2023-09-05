@@ -251,7 +251,7 @@ run_in_container() {
         --root "${imgroot}" \
         --uid $(id -u) \
         --gid $(id -g) \
-        --env HOME=/home/$(whoami) \
+        --env HOME=/root \
         --env LANG=en_US.UTF-8 \
         --env LC_COLLATE=C \
         --env PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl \
@@ -1200,8 +1200,6 @@ reinit_container() {
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" reflector --delay 0.25 --protocol https --score 10 --sort score --save /etc/pacman.d/mirrorlist
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Syu
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --needed --noconfirm -S bison diffutils flex gettext inetutils libtool m4 make patch perl python texinfo which
-
-    run_in_container1 "$JINX_CACHE_DIR/sets/.image" useradd -m --uid $(id -u) $(whoami)
 
     # Fix permissions of files
     for f in $(find "$JINX_CACHE_DIR/sets/.image" -perm 000 2>/dev/null); do
