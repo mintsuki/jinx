@@ -399,7 +399,7 @@ do_configure_host() {
 
     mkdir -p "${build_dir}"/host-builds/${name}
 
-    eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -425,7 +425,7 @@ do_build_host() {
 
     version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
-    eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -456,7 +456,7 @@ do_install_host() {
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
 
-    eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -491,7 +491,7 @@ do_configure() {
 
     mkdir -p "${build_dir}"/builds/${name}
 
-    eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -517,7 +517,7 @@ do_build() {
 
     version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
-    eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -548,7 +548,7 @@ do_install() {
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
 
-    eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -654,7 +654,7 @@ do_host_pkg() {
 
     echo "* building host package: $name"
 
-    eval $(grep 'from_source=' < "${base_dir}"/host-recipes/$1)
+    from_source="$(. "${base_dir}"/host-recipes/$1 && echo "$from_source")"
     [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
         "${script}" internal-source "${from_source}"
 
@@ -676,7 +676,7 @@ do_pkg() {
 
     echo "* building package: $name"
 
-    eval $(grep 'from_source=' < "${base_dir}"/recipes/$1)
+    from_source="$(. "${base_dir}"/recipes/$1 && echo "$from_source")"
     [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
         "${script}" internal-source "${from_source}"
 
