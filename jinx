@@ -744,12 +744,6 @@ cmd_install() {
     for ppkg in "$@"; do
         if [ "${ppkg}" = '*' ]; then
             for pkg in "${build_dir}"/pkgs/*; do
-                add_to_sysroot=""
-                eval $(grep 'add_to_sysroot=' < "${base_dir}"/recipes/$(basename "${pkg}"))
-                if [ "${add_to_sysroot}" = "no" ]; then
-                    continue
-                fi
-
                 echo "* copying $(basename "${pkg}") to sysroot '${sysroot}'..."
                 cp -rf "${pkg}"/. "${sysroot}"/
             done
