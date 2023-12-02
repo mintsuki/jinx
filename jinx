@@ -395,6 +395,8 @@ do_configure_host() {
 
     [ -f "${build_dir}"/host-builds/${name}.configured ] && return
 
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
     mkdir -p "${build_dir}"/host-builds/${name}
 
     eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
@@ -421,6 +423,8 @@ do_build_host() {
 
     [ -f "${build_dir}"/host-builds/${name}.built ] && return
 
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
     eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
@@ -444,6 +448,8 @@ do_install_host() {
     . "${base_dir}"/host-recipes/$1
 
     [ -f "${build_dir}"/host-builds/${name}.installed ] && return
+
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
     dest_dir="${build_dir}"/host-pkgs/${name}
 
@@ -481,6 +487,8 @@ do_configure() {
 
     [ -f "${build_dir}"/builds/${name}.configured ] && return
 
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
     mkdir -p "${build_dir}"/builds/${name}
 
     eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
@@ -507,6 +515,8 @@ do_build() {
 
     [ -f "${build_dir}"/builds/${name}.built ] && return
 
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
     eval $(grep 'source_dir=' < "${base_dir}"/source-recipes/${from_source})
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
@@ -530,6 +540,8 @@ do_install() {
     . "${base_dir}"/recipes/$1
 
     [ -f "${build_dir}"/builds/${name}.installed ] && return
+
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
     dest_dir="${build_dir}"/pkgs/${name}
 
