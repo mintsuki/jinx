@@ -390,40 +390,14 @@ do_regenerate() {
     touch "${base_dir}"/sources/${name}.regenerated
 }
 
-do_configure_host() {
-    . "${base_dir}"/host-recipes/$1
-
-    [ -f "${build_dir}"/host-builds/${name}.configured ] && return
-
-    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
-
-    mkdir -p "${build_dir}"/host-builds/${name}
-
-    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    if [ -z "${source_dir}" ]; then
-        source_dir="${base_dir}"/sources/${from_source}
-    else
-        source_dir="${base_dir}"/"${source_dir}"
-    fi
-
-    prefix="/usr/local"
-    sysroot_dir="/sysroot"
-
-    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
-
-    cd "${build_dir}"/host-builds/${name}
-    configure
-    cd "${base_dir}"
-
-    touch "${build_dir}"/host-builds/${name}.configured
-}
-
 do_build_host() {
     . "${base_dir}"/host-recipes/$1
 
     [ -f "${build_dir}"/host-builds/${name}.built ] && return
 
     version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
+    mkdir -p "${build_dir}"/host-builds/${name}
 
     source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
@@ -482,40 +456,14 @@ do_install_host() {
     touch "${build_dir}"/host-builds/${name}.installed
 }
 
-do_configure() {
-    . "${base_dir}"/recipes/$1
-
-    [ -f "${build_dir}"/builds/${name}.configured ] && return
-
-    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
-
-    mkdir -p "${build_dir}"/builds/${name}
-
-    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    if [ -z "${source_dir}" ]; then
-        source_dir="${base_dir}"/sources/${from_source}
-    else
-        source_dir="${base_dir}"/"${source_dir}"
-    fi
-
-    prefix="/usr"
-    sysroot_dir="/sysroot"
-
-    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
-
-    cd "${build_dir}"/builds/${name}
-    configure
-    cd "${base_dir}"
-
-    touch "${build_dir}"/builds/${name}.configured
-}
-
 do_build() {
     . "${base_dir}"/recipes/$1
 
     [ -f "${build_dir}"/builds/${name}.built ] && return
 
     version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
+    mkdir -p "${build_dir}"/builds/${name}
 
     source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
@@ -661,7 +609,6 @@ do_host_pkg() {
     prepare_container
 
     container_sources_ro=":ro"
-    run_in_container internal-configure-host $1
     run_in_container internal-build-host $1
     run_in_container internal-install-host $1
     unset container_sources_ro
@@ -683,7 +630,6 @@ do_pkg() {
     prepare_container
 
     container_sources_ro=":ro"
-    run_in_container internal-configure $1
     run_in_container internal-build $1
     run_in_container internal-install $1
     unset container_sources_ro
@@ -1258,17 +1204,11 @@ case "$1" in
     internal-cont-patch)
         cont_patch "$2"
         ;;
-    internal-configure-host)
-        do_configure_host "$2"
-        ;;
     internal-build-host)
         do_build_host "$2"
         ;;
     internal-install-host)
         do_install_host "$2"
-        ;;
-    internal-configure)
-        do_configure "$2"
         ;;
     internal-build)
         do_build "$2"
