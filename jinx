@@ -25,7 +25,8 @@
 
 set -e
 
-jinx_version="0.1.5"
+jinx_version="0.2.0"
+jinx_major_ver="0.2"
 
 IFS=" ""	"'
 '
@@ -1184,6 +1185,16 @@ esac
 
 if ! [ -f "$JINX_CONFIG_FILE_PATH" ]; then
     die "$0: missing Jinx config file in source directory $base_dir"
+fi
+
+JINX_MAJOR_VER_CONFIG="$(. "$JINX_CONFIG_FILE_PATH" && echo "$JINX_MAJOR_VER")"
+
+if [ -z "$JINX_MAJOR_VER_CONFIG" ]; then
+    die "$0: required config variable \$JINX_MAJOR_VER missing"
+fi
+
+if ! [ "$JINX_MAJOR_VER_CONFIG" = "$jinx_major_ver" ]; then
+    die "$0: needed major version ($JINX_MAJOR_VER_CONFIG) differs from Jinx-provided major version ($jinx_major_ver)"
 fi
 
 if ! [ -d "$JINX_CACHE_DIR" ]; then
