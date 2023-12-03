@@ -85,7 +85,7 @@ build_hostdeps() {
     for hostdep in ${hostdeps} ${hostrundeps}; do
         [ -f "${base_dir}"/host-recipes/${hostdep} ] || die "missing host dependency '${hostdep}' for recipe '${name}'"
 
-        [ -f "${build_dir}"/host-builds/${hostdep}.installed ] && continue
+        [ -f "${build_dir}"/host-builds/${hostdep}.packaged ] && continue
 
         "${script}" host-build ${hostdep}
     done
@@ -95,7 +95,7 @@ build_deps() {
     for dep in ${deps} ${builddeps}; do
         [ -f "${base_dir}"/recipes/${dep} ] || die "missing dependency '${dep}' for recipe '${name}'"
 
-        [ -f "${build_dir}"/builds/${dep}.installed ] && continue
+        [ -f "${build_dir}"/builds/${dep}.packaged ] && continue
 
         "${script}" build ${dep}
     done
@@ -418,10 +418,10 @@ do_build_host() {
     touch "${build_dir}"/host-builds/${name}.built
 }
 
-do_install_host() {
+do_package_host() {
     . "${base_dir}"/host-recipes/$1
 
-    [ -f "${build_dir}"/host-builds/${name}.installed ] && return
+    [ -f "${build_dir}"/host-builds/${name}.packaged ] && return
 
     version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
@@ -445,7 +445,7 @@ do_install_host() {
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${build_dir}"/host-builds/${name}
-    install
+    package
     cd "${base_dir}"
 
     # Remove libtool files
@@ -453,7 +453,7 @@ do_install_host() {
         rm -rvf $i
     done
 
-    touch "${build_dir}"/host-builds/${name}.installed
+    touch "${build_dir}"/host-builds/${name}.packaged
 }
 
 do_build() {
@@ -484,10 +484,10 @@ do_build() {
     touch "${build_dir}"/builds/${name}.built
 }
 
-do_install() {
+do_package() {
     . "${base_dir}"/recipes/$1
 
-    [ -f "${build_dir}"/builds/${name}.installed ] && return
+    [ -f "${build_dir}"/builds/${name}.packaged ] && return
 
     version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
@@ -511,7 +511,7 @@ do_install() {
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${build_dir}"/builds/${name}
-    install
+    package
     cd "${base_dir}"
 
     # Remove libtool files
@@ -519,7 +519,7 @@ do_install() {
         rm -rvf $i
     done
 
-    touch "${build_dir}"/builds/${name}.installed
+    touch "${build_dir}"/builds/${name}.packaged
 }
 
 precont_patch() {
@@ -598,7 +598,7 @@ do_cmd_regenerate() {
 do_host_pkg() {
     . "${base_dir}"/host-recipes/$1
 
-    [ -f "${build_dir}"/host-builds/${name}.installed ] && return
+    [ -f "${build_dir}"/host-builds/${name}.packaged ] && return
 
     echo "* building host package: $name"
 
@@ -610,7 +610,7 @@ do_host_pkg() {
 
     container_sources_ro=":ro"
     run_in_container internal-build-host $1
-    run_in_container internal-install-host $1
+    run_in_container internal-package-host $1
     unset container_sources_ro
 
     destroy_container
@@ -619,7 +619,7 @@ do_host_pkg() {
 do_pkg() {
     . "${base_dir}"/recipes/$1
 
-    [ -f "${build_dir}"/builds/${name}.installed ] && return
+    [ -f "${build_dir}"/builds/${name}.packaged ] && return
 
     echo "* building package: $name"
 
@@ -631,7 +631,7 @@ do_pkg() {
 
     container_sources_ro=":ro"
     run_in_container internal-build $1
-    run_in_container internal-install $1
+    run_in_container internal-package $1
     unset container_sources_ro
 
     destroy_container
@@ -1207,14 +1207,14 @@ case "$1" in
     internal-build-host)
         do_build_host "$2"
         ;;
-    internal-install-host)
-        do_install_host "$2"
+    internal-package-host)
+        do_package_host "$2"
         ;;
     internal-build)
         do_build "$2"
         ;;
-    internal-install)
-        do_install "$2"
+    internal-package)
+        do_package "$2"
         ;;
     internal-get-deps-file)
         . "${base_dir}"/recipes/$2
