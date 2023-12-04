@@ -34,8 +34,17 @@ IFS=" ""	"'
 LC_COLLATE=C
 export LC_COLLATE
 
+die() {
+    echo "$1"
+    exit 1
+}
+
+if ! [ "$(uname -s)" = "Linux" ]; then
+    die "$0: Jinx only supports running on Linux hosts."
+fi
+
 max_threads_by_mem="$(( $(free | awk '/^Mem:/{print $2}') / 1024 / 1024 ))"
-parallelism="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || psrinfo -tc 2>/dev/null || echo 1)"
+parallelism="$(nproc 2>/dev/null || echo 1)"
 parallelism="$(( $parallelism < $max_threads_by_mem ? $parallelism : $max_threads_by_mem ))"
 build_dir="$(pwd -P)"
 
@@ -68,11 +77,6 @@ if [ -z "$JINX_CACHE_DIR" ]; then
 fi
 
 pacman_cache="$JINX_CACHE_DIR/pacman"
-
-die() {
-    echo "$1"
-    exit 1
-}
 
 temp_collect=""
 trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
