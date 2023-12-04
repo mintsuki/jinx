@@ -2,8 +2,9 @@
 
 ![Jinx logo](/logo-small.png?raw=true "Jinx logo")
 
-Jinx (Jinx Is Not Xbstrap) is a meta-build-system for bootstrapping operating system
-distributions inspired by xbstrap (https://github.com/managarm/xbstrap).
+Jinx (Jinx Is Not Xbstrap) is a meta-build-system for bootstrapping operating
+system distributions inspired by [xbstrap](https://github.com/managarm/xbstrap)
+and Arch Linux's [PKGBUILDs](https://wiki.archlinux.org/title/PKGBUILD).
 
 Some documentation, along with basic instructions and an explanation of the
 internals of Jinx is provided [here](DOCS.md). Some examples of hobby OSes
