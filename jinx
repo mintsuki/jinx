@@ -204,39 +204,45 @@ prepare_container() {
     make_temp -d
     sysroot_dir="${tmp}"
 
-    for hostdep in $(cat "${hostdeps_file}"); do
-        cp -Plrf "${build_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
-    done
-
     for dep in $(cat "${deps_file}"); do
         cp -Plrf "${build_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
     done
 
-    imagedeps="$(echo "${imagedeps}" | xargs -n1 | sort -u | xargs)"
+    native_mode="$(. "$JINX_CONFIG_FILE_PATH" && echo "$JINX_NATIVE_MODE")"
 
-    pkgset=""
-    for pkg in ${imagedeps}; do
-        pkgset="${pkgset}${pkg}/"
-
-        if [ -d "$JINX_CACHE_DIR/sets/${pkgset}.image" ]; then
-            continue
-        fi
-
-        mkdir -p "$JINX_CACHE_DIR/sets/${pkgset}"
-
-        cp -Plrf "$JINX_CACHE_DIR/sets/${pkgset}../.image" "$JINX_CACHE_DIR/sets/${pkgset}.image"
-
-        if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"; then
-            die 'Jinx error: Installing an imagedep failed. If the error is not due to a non-existant package, try running `jinx rebuild-cache` and try again.'
-        fi
-
-        # Fix permissions of files
-        for f in $(find "$JINX_CACHE_DIR/sets/${pkgset}.image" -perm 000 2>/dev/null); do
-            chmod 755 "$f"
+    if [ "$native_mode" = "yes" ] && [ -z "$cross_compile" ]; then
+        imgroot="${sysroot_dir}"
+    else
+        for hostdep in $(cat "${hostdeps_file}"); do
+            cp -Plrf "${build_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
         done
-    done
 
-    imgroot="$JINX_CACHE_DIR/sets/${pkgset}.image"
+        imagedeps="$(echo "${imagedeps}" | xargs -n1 | sort -u | xargs)"
+
+        pkgset=""
+        for pkg in ${imagedeps}; do
+            pkgset="${pkgset}${pkg}/"
+
+            if [ -d "$JINX_CACHE_DIR/sets/${pkgset}.image" ]; then
+                continue
+            fi
+
+            mkdir -p "$JINX_CACHE_DIR/sets/${pkgset}"
+
+            cp -Plrf "$JINX_CACHE_DIR/sets/${pkgset}../.image" "$JINX_CACHE_DIR/sets/${pkgset}.image"
+
+            if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"; then
+                die 'Jinx error: Installing an imagedep failed. If the error is not due to a non-existant package, try running `jinx rebuild-cache` and try again.'
+            fi
+
+            # Fix permissions of files
+            for f in $(find "$JINX_CACHE_DIR/sets/${pkgset}.image" -perm 000 2>/dev/null); do
+                chmod 755 "$f"
+            done
+        done
+
+        imgroot="$JINX_CACHE_DIR/sets/${pkgset}.image"
+    fi
 }
 
 run_in_container() {
@@ -254,6 +260,20 @@ run_in_container() {
         run_in_cont_colorterm="--env COLORTERM=\"$COLORTERM\""
     fi
 
+    touch "${imgroot}/jinx"
+    chmod +x "${imgroot}/jinx"
+    mkdir -p "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
+
+    native_mode_mounts=""
+    if [ "$native_mode" = "yes" ] && [ "$cross_compile" = "yes" ]; then
+        mkdir -p "${imgroot}/sysroot"
+
+        native_mode_mounts=" \
+            --mount "${container_pkgs}":/usr/local:ro \
+            --mount "${sysroot_dir}":/sysroot:ro \
+        "
+    fi
+
     "$JINX_CACHE_DIR/rbrt" \
         --root "${imgroot}" \
         --uid $(id -u) \
@@ -266,16 +286,17 @@ run_in_container() {
         ${run_in_cont_colorterm} \
         --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
         --env JINX_SOURCE_DIR=/base_dir \
-        --mount "${container_pkgs}":/usr/local:ro \
-        --mount "${sysroot_dir}":/sysroot:ro \
+        ${native_mode_mounts} \
         --mount "${script}":/jinx:ro \
         --mount "${base_dir}":/base_dir${container_base_dir_ro} \
         --mount "${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
         --mount "${build_dir}":/build_dir \
         ${unshare_net_flag} \
-        --workdir /build_dir \
+        --workdir / \
         -- \
-        /jinx "$@"
+        /bin/sh -c "cd /build_dir && /jinx $*"
+
+    rm -rf "${imgroot}/sysroot" "${imgroot}/jinx" "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
 }
 
 destroy_container() {
@@ -530,6 +551,7 @@ do_package() {
 precont_patch() {
     [ -f "${base_dir}"/sources/$1.patched ] && return
 
+    cross_compile=yes
     prepare_container
     run_in_container internal-cont-patch $1
     destroy_container
@@ -544,6 +566,7 @@ do_source() {
 
     "${script}" internal-precont-patch $1
 
+    cross_compile=yes
     prepare_container
     run_in_container internal-regenerate $1
     destroy_container
@@ -595,6 +618,7 @@ do_cmd_regenerate() {
 
     rm -rf "${base_dir}"/sources/$1.regenerated
 
+    cross_compile=yes
     prepare_container
     run_in_container internal-regenerate $1
     destroy_container
@@ -611,6 +635,7 @@ do_host_pkg() {
     [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
         "${script}" internal-source "${from_source}"
 
+    cross_compile=yes
     prepare_container
 
     container_sources_ro=":ro"
@@ -1140,11 +1165,6 @@ reinit_container() {
     echo 'Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch' >> "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
     echo 'en_US.UTF-8 UTF-8' > "$JINX_CACHE_DIR/sets/.image/etc/locale.gen"
     mkdir "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/gnupg"
-    mkdir "$JINX_CACHE_DIR/sets/.image/sysroot"
-    mkdir "$JINX_CACHE_DIR/sets/.image/base_dir"
-    mkdir "$JINX_CACHE_DIR/sets/.image/build_dir"
-    touch "$JINX_CACHE_DIR/sets/.image/jinx"
-    chmod +x "$JINX_CACHE_DIR/sets/.image/jinx"
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" locale-gen
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --init
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --populate archlinux
