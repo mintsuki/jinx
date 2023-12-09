@@ -264,8 +264,10 @@ run_in_container() {
     chmod +x "${imgroot}/jinx"
     mkdir -p "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
 
+    native_mode="$(. "$JINX_CONFIG_FILE_PATH" && echo "$JINX_NATIVE_MODE")"
+
     native_mode_mounts=""
-    if [ "$native_mode" = "yes" ] && [ "$cross_compile" = "yes" ]; then
+    if ( [ "$native_mode" = "yes" ] && [ "$cross_compile" = "yes" ] ) || ( ! [ "$native_mode" = "yes" ] ); then
         mkdir -p "${imgroot}/sysroot"
 
         native_mode_mounts=" \
