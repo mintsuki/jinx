@@ -110,8 +110,8 @@ get_hostdeps_file_run() {
     deps_to_do=""
 
     for hostdep in ${hostrundeps}; do
-        grep "${hostdep} " "${hostdeps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${hostdep}"
-        grep "${hostdep} " "${hostdeps_file}" >/dev/null 2>&1 || printf "${hostdep} " >> "${hostdeps_file}"
+        grep " ${hostdep} " "${hostdeps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${hostdep}"
+        grep " ${hostdep} " "${hostdeps_file}" >/dev/null 2>&1 || printf " ${hostdep} " >> "${hostdeps_file}"
     done
 
     for hostdep in ${deps_to_do}; do
@@ -123,8 +123,8 @@ get_hostdeps_file() {
     deps_to_do=""
 
     for hostdep in ${hostdeps} ${hostrundeps}; do
-        grep "${hostdep} " "${hostdeps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${hostdep}"
-        grep "${hostdep} " "${hostdeps_file}" >/dev/null 2>&1 || printf "${hostdep} " >> "${hostdeps_file}"
+        grep " ${hostdep} " "${hostdeps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${hostdep}"
+        grep " ${hostdep} " "${hostdeps_file}" >/dev/null 2>&1 || printf " ${hostdep} " >> "${hostdeps_file}"
     done
 
     for hostdep in ${deps_to_do}; do
@@ -136,8 +136,8 @@ get_builddeps_file() {
     deps_to_do=""
 
     for dep in ${deps} ${builddeps}; do
-        grep "${dep} " "${deps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${dep}"
-        grep "${dep} " "${deps_file}" >/dev/null 2>&1 || printf "${dep} " >> "${deps_file}"
+        grep " ${dep} " "${deps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${dep}"
+        grep " ${dep} " "${deps_file}" >/dev/null 2>&1 || printf " ${dep} " >> "${deps_file}"
     done
 
     for dep in ${deps_to_do}; do
@@ -149,8 +149,8 @@ get_deps_file() {
     deps_to_do=""
 
     for dep in ${deps}; do
-        grep "${dep} " "${deps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${dep}"
-        grep "${dep} " "${deps_file}" >/dev/null 2>&1 || printf "${dep} " >> "${deps_file}"
+        grep " ${dep} " "${deps_file}" >/dev/null 2>&1 || deps_to_do="${deps_to_do} ${dep}"
+        grep " ${dep} " "${deps_file}" >/dev/null 2>&1 || printf " ${dep} " >> "${deps_file}"
     done
 
     for dep in ${deps_to_do}; do
