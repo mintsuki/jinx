@@ -79,10 +79,6 @@ imagedeps="meson ninja"    # Dependencies needed by the container.
 hostdeps="gcc"             # Dependencies under 'host-recipes'
 deps="mlibc"               # Dependencies under 'recipes'
 
-# Configure step, should be the step that prepares for compilation.
-configure() {
-    ...
-}
 
 # Building step, should do the bulk of the work and compile source, or generate
 # install artifacts.
