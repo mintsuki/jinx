@@ -289,6 +289,11 @@ run_in_container() {
         fi
     fi
 
+    run_in_cont_argvar=""
+    for arg in "$@"; do
+        run_in_cont_argvar="$run_in_cont_argvar \"$arg\""
+    done
+
     "$JINX_CACHE_DIR/rbrt" \
         --root "${imgroot}" \
         --uid $(id -u) \
@@ -310,7 +315,7 @@ run_in_container() {
         ${unshare_net_flag} \
         --workdir / \
         -- \
-        /bin/sh -c "cd /build_dir && /jinx $*"
+        /bin/sh -c "cd /build_dir && /jinx $run_in_cont_argvar"
 
     rm -rf "${imgroot}/sysroot" "${imgroot}/jinx" "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
 }
