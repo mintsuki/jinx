@@ -278,7 +278,7 @@ run_in_container() {
             --mount "${sysroot_dir}":/sysroot:ro \
         "
 
-        run_in_cont_lang=﻿﻿en_US.UTF-8
+        run_in_cont_lang=en_US.UTF-8
     else
         JINX_NATIVE_LANG="$(. "$JINX_CONFIG_FILE_PATH" && echo "$JINX_NATIVE_LANG")"
 
