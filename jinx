@@ -1252,7 +1252,7 @@ reinit_container() {
     curl -Lo xstow-1.1.1.tar.gz https://github.com/majorkingleo/xstow/releases/download/1.1.1/xstow-1.1.1.tar.gz
     tar -xf xstow-1.1.1.tar.gz
     cd xstow-1.1.1
-    ./configure LDFLAGS="-static"
+    ./configure LDFLAGS="-static" --enable-static --enable-merge-info --without-curses
     make -j${parallelism}
     mv src/merge-info "$JINX_CACHE_DIR/"
     )
