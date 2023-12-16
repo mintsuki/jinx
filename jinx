@@ -1086,6 +1086,12 @@ int main(int argc, char *argv[]) {
             goto errno_error;
         }
 
+        snprintf(target_path, PATH_MAX, "%s/var/tmp", rootfs);
+        if (mount(NULL, target_path, "tmpfs", 0, NULL) < 0) {
+            err_msg = "mount() failure at line " TOSTRING(__LINE__);
+            goto errno_error;
+        }
+
         snprintf(target_path, PATH_MAX, "%s/proc", rootfs);
         if (mount(NULL, target_path, "proc", 0, NULL) < 0) {
             err_msg = "mount() failure at line " TOSTRING(__LINE__);
