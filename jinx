@@ -80,7 +80,9 @@ else
     JINX_CACHE_DIR="$(cd $JINX_CACHE_DIR && pwd -P)"
 fi
 
-export PATH="$JINX_CACHE_DIR/host-tools/bin:$PATH"
+if ! [ "$script" = "//jinx" ]; then
+    export PATH="$JINX_CACHE_DIR/host-tools/bin:$PATH"
+fi
 
 pacman_cache="$JINX_CACHE_DIR/pacman"
 
