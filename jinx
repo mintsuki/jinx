@@ -357,11 +357,15 @@ do_fetch() {
 
     [ -d "${source_dir}" ] && return
 
-    make_temp -d
-    extract_dir="${tmp}"
     tarball_path="${base_dir}"/sources/"$(basename "${tarball_url}")"
 
-    curl -L -o "${tarball_path}" "${tarball_url}"
+    if ! [ -f "$tarball_path" ]; then
+        make_temp
+        download_path="${tmp}"
+
+        curl -L -o "${download_path}" "${tarball_url}"
+        mv "${download_path}" "${tarball_path}"
+    fi
 
     checksum_verified=no
 
@@ -396,6 +400,9 @@ do_fetch() {
     if [ "${checksum_verified}" = "no" ]; then
         die "* error: No checksum method specified for ${name}"
     fi
+
+    make_temp -d
+    extract_dir="${tmp}"
 
     ( cd "${extract_dir}" && tar -xf "${tarball_path}" )
 
