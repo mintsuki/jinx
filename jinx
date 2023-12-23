@@ -465,7 +465,11 @@ do_regenerate() {
 
     cd "${source_dir}"
     [ "${is_local_package}" = true ] || container_base_dir_ro=":ro"
-    regenerate
+
+    if type -t regenerate >/dev/null; then
+        regenerate
+    fi
+
     container_base_dir_ro=""
     cd "${base_dir}"
 
@@ -498,7 +502,11 @@ do_build_host() {
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${build_dir}"/host-builds/${name}
-    build
+
+    if type -t build >/dev/null; then
+        build
+    fi
+
     cd "${base_dir}"
 
     touch "${build_dir}"/host-builds/${name}.built
@@ -535,7 +543,11 @@ do_package_host() {
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${build_dir}"/host-builds/${name}
-    package
+
+    if type -t package >/dev/null; then
+        package
+    fi
+
     cd "${base_dir}"
 
     # Remove libtool files
@@ -575,7 +587,11 @@ do_build() {
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${build_dir}"/builds/${name}
-    build
+
+    if type -t build >/dev/null; then
+        build
+    fi
+
     cd "${base_dir}"
 
     touch "${build_dir}"/builds/${name}.built
@@ -612,7 +628,11 @@ do_package() {
     [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${build_dir}"/builds/${name}
-    package
+
+    if type -t package >/dev/null; then
+        package
+    fi
+
     cd "${base_dir}"
 
     # Remove libtool files
