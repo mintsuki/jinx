@@ -80,6 +80,11 @@ else
     JINX_CACHE_DIR="$(cd $JINX_CACHE_DIR && pwd -P)"
 fi
 
+in_container=false
+if [ "$script" = "//jinx" ]; then
+    in_container=true
+fi
+
 pacman_cache="$JINX_CACHE_DIR/pacman"
 
 temp_collect=""
