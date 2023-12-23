@@ -26,7 +26,7 @@
 set -e
 
 jinx_major_ver="0.2"
-jinx_minor_ver="7"
+jinx_minor_ver="8"
 
 jinx_version="${jinx_major_ver}.${jinx_minor_ver}"
 
