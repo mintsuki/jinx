@@ -45,8 +45,8 @@ if ! [ "$(uname -s)" = "Linux" ]; then
     die "$0: Jinx only supports running on Linux hosts."
 fi
 
-max_threads_by_mem="$(( $(free | awk '/^Mem:/{print $2}') / 1024 / 1024 ))"
 if [ -z "$JINX_PARALLELISM" ]; then
+    max_threads_by_mem="$(( $(free | awk '/^Mem:/{print $2}') / 1024 / 1024 / 2 ))"
     parallelism="$(nproc 2>/dev/null || echo 1)"
     parallelism="$(( $parallelism < $max_threads_by_mem ? $parallelism : $max_threads_by_mem ))"
 else
