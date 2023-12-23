@@ -46,8 +46,12 @@ if ! [ "$(uname -s)" = "Linux" ]; then
 fi
 
 max_threads_by_mem="$(( $(free | awk '/^Mem:/{print $2}') / 1024 / 1024 ))"
-parallelism="$(nproc 2>/dev/null || echo 1)"
-parallelism="$(( $parallelism < $max_threads_by_mem ? $parallelism : $max_threads_by_mem ))"
+if [ -z "$JINX_PARALLELISM" ]; then
+    parallelism="$(nproc 2>/dev/null || echo 1)"
+    parallelism="$(( $parallelism < $max_threads_by_mem ? $parallelism : $max_threads_by_mem ))"
+else
+    parallelism="$JINX_PARALLELISM"
+fi
 build_dir="$(pwd -P)"
 
 if [ -z "$JINX_SOURCE_DIR" ]; then
@@ -310,6 +314,7 @@ run_in_container() {
             --env LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib \
             ${run_in_cont_term} \
             ${run_in_cont_colorterm} \
+            --env JINX_PARALLELISM="$parallelism" \
             --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
             --env JINX_SOURCE_DIR=/base_dir \
             --mount "${script}":/jinx:ro \
@@ -332,6 +337,7 @@ run_in_container() {
             --env LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib \
             ${run_in_cont_term} \
             ${run_in_cont_colorterm} \
+            --env JINX_PARALLELISM="$parallelism" \
             --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
             --env JINX_SOURCE_DIR=/base_dir \
             --mount "${container_pkgs}":/usr/local:ro \
