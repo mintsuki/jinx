@@ -354,7 +354,7 @@ run_in_container() {
             /bin/sh -c "cd /build_dir && /jinx $run_in_cont_argvar"
     fi
 
-    rm -rf "${imgroot}/sysroot" "${imgroot}/jinx" "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
+    rm -rf "${imgroot}/sysroot" "${imgroot}/jinx" "${imgroot}/jinx-config" "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
 }
 
 destroy_container() {
