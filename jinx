@@ -73,16 +73,21 @@ script_dir="$(cd "${script_dir}" && pwd -P)"
 script="${script_dir}/${script_name}"
 
 if [ -z "$JINX_CONFIG_FILE" ]; then
-    JINX_CONFIG_FILE_PATH="${base_dir}"/jinx-config
-else
-    JINX_CONFIG_FILE_PATH="${base_dir}"/"${JINX_CONFIG_FILE}"
+    JINX_CONFIG_FILE="${base_dir}/jinx-config"
 fi
+if ! [ -d "$(dirname "$JINX_CONFIG_FILE")" ]; then
+    die "$0: cannot access config file directory"
+fi
+JINX_CONFIG_FILE="$(cd "$(dirname "$JINX_CONFIG_FILE")" && pwd -P)"/"$(basename "$JINX_CONFIG_FILE")"
 
 if [ -z "$JINX_CACHE_DIR" ]; then
-    JINX_CACHE_DIR="$build_dir/.jinx-cache"
-else
-    JINX_CACHE_DIR="$(cd $JINX_CACHE_DIR && pwd -P)"
+    JINX_CACHE_DIR="${build_dir}/.jinx-cache"
 fi
+if ! [ -d "$(dirname "$JINX_CACHE_DIR")" ]; then
+    die "$0: cannot access cache directory parent"
+fi
+mkdir -p "$JINX_CACHE_DIR"
+JINX_CACHE_DIR="$(cd $JINX_CACHE_DIR && pwd -P)"
 
 in_container=false
 if [ "$script" = "//jinx" ]; then
@@ -274,6 +279,7 @@ run_in_container() {
 
     touch "${imgroot}/jinx"
     chmod +x "${imgroot}/jinx"
+    touch "${imgroot}/jinx-config"
     mkdir -p "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
 
     native_mode_mounts=""
@@ -309,9 +315,10 @@ run_in_container() {
             ${run_in_cont_term} \
             ${run_in_cont_colorterm} \
             --env JINX_PARALLELISM="$parallelism" \
-            --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
+            --env JINX_CONFIG_FILE=/jinx-config \
             --env JINX_SOURCE_DIR=/base_dir \
             --mount "${script}":/jinx:ro \
+            --mount "${JINX_CONFIG_FILE}":/jinx-config:ro \
             --mount "${base_dir}":/base_dir${container_base_dir_ro} \
             --mount "${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
             --mount "${build_dir}":/build_dir \
@@ -332,11 +339,12 @@ run_in_container() {
             ${run_in_cont_term} \
             ${run_in_cont_colorterm} \
             --env JINX_PARALLELISM="$parallelism" \
-            --env JINX_CONFIG_FILE="$JINX_CONFIG_FILE" \
+            --env JINX_CONFIG_FILE=/jinx-config \
             --env JINX_SOURCE_DIR=/base_dir \
             --mount "${container_pkgs}":/usr/local:ro \
             --mount "${sysroot_dir}":/sysroot:ro \
             --mount "${script}":/jinx:ro \
+            --mount "${JINX_CONFIG_FILE}":/jinx-config:ro \
             --mount "${base_dir}":/base_dir${container_base_dir_ro} \
             --mount "${base_dir}"/sources:/base_dir/sources${container_sources_ro} \
             --mount "${build_dir}":/build_dir \
@@ -1588,11 +1596,11 @@ case "$1" in
         ;;
 esac
 
-if ! [ -f "$JINX_CONFIG_FILE_PATH" ]; then
-    die "$0: missing Jinx config file in source directory $base_dir"
+if ! [ -f "$JINX_CONFIG_FILE" ]; then
+    die "$0: missing Jinx config file '$JINX_CONFIG_FILE'"
 fi
 
-. "${JINX_CONFIG_FILE_PATH}"
+. "${JINX_CONFIG_FILE}"
 
 if [ -z "$JINX_MAJOR_VER" ]; then
     die "$0: required config variable \$JINX_MAJOR_VER missing"
