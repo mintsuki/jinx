@@ -432,6 +432,20 @@ get_real_source_dir() {
     fi
 }
 
+default_recipe_steps() {
+    regenerate() {
+        true
+    }
+
+    build() {
+        true
+    }
+
+    package() {
+        true
+    }
+}
+
 cont_patch() {
     . "${base_dir}/$1"
 
@@ -464,6 +478,8 @@ cont_patch() {
 }
 
 do_regenerate() {
+    default_recipe_steps
+
     . "${base_dir}/$1"
 
     get_real_source_dir
@@ -480,6 +496,8 @@ do_regenerate() {
 }
 
 do_build_host() {
+    default_recipe_steps
+
     . "${base_dir}"/host-recipes/$1
 
     [ -f "${build_dir}"/host-builds/${name}.built ] && return
@@ -510,6 +528,8 @@ do_build_host() {
 }
 
 do_package_host() {
+    default_recipe_steps
+
     . "${base_dir}"/host-recipes/$1
 
     [ -f "${build_dir}"/host-builds/${name}.packaged ] && return
@@ -553,6 +573,8 @@ do_package_host() {
 }
 
 do_build() {
+    default_recipe_steps
+
     . "${base_dir}"/recipes/$1
 
     [ -f "${build_dir}"/builds/${name}.built ] && return
@@ -583,6 +605,8 @@ do_build() {
 }
 
 do_package() {
+    default_recipe_steps
+
     . "${base_dir}"/recipes/$1
 
     [ -f "${build_dir}"/builds/${name}.packaged ] && return
