@@ -222,9 +222,7 @@ prepare_container() {
         cp -Pplrn "${build_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
     done
 
-    native_mode="$(. "$JINX_CONFIG_FILE_PATH" && echo "$JINX_NATIVE_MODE")"
-
-    if [ "$native_mode" = "yes" ] && [ -z "$cross_compile" ]; then
+    if [ "$JINX_NATIVE_MODE" = "yes" ] && [ -z "$cross_compile" ]; then
         imgroot="${sysroot_dir}"
     else
         for hostdep in $(cat "${hostdeps_file}"); do
@@ -278,18 +276,14 @@ run_in_container() {
     chmod +x "${imgroot}/jinx"
     mkdir -p "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
 
-    native_mode="$(. "$JINX_CONFIG_FILE_PATH" && echo "$JINX_NATIVE_MODE")"
-
     native_mode_mounts=""
-    if ( [ "$native_mode" = "yes" ] && [ "$cross_compile" = "yes" ] ) || ( ! [ "$native_mode" = "yes" ] ); then
+    if ( [ "$JINX_NATIVE_MODE" = "yes" ] && [ "$cross_compile" = "yes" ] ) || ( ! [ "$JINX_NATIVE_MODE" = "yes" ] ); then
         mkdir -p "${imgroot}/sysroot"
 
         native_mode_mounts=y
 
         run_in_cont_lang=en_US.UTF-8
     else
-        JINX_NATIVE_LANG="$(. "$JINX_CONFIG_FILE_PATH" && echo "$JINX_NATIVE_LANG")"
-
         if ! [ -z "$JINX_NATIVE_LANG" ]; then
             run_in_cont_lang="$JINX_NATIVE_LANG"
         else
@@ -468,8 +462,6 @@ do_regenerate() {
 
     [ -f "${base_dir}"/sources/${name}.regenerated ] && return
 
-    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
-
     cd "${source_dir}"
     [ "${is_local_package}" = true ] || container_base_dir_ro=":ro"
 
@@ -505,8 +497,6 @@ do_build_host() {
 
     prefix="/usr/local"
     sysroot_dir="/sysroot"
-
-    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${build_dir}"/host-builds/${name}
 
@@ -546,8 +536,6 @@ do_package_host() {
     sysroot_dir="/sysroot"
 
     mkdir -p "${dest_dir}${prefix}"
-
-    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${build_dir}"/host-builds/${name}
 
@@ -591,8 +579,6 @@ do_build() {
     prefix="/usr"
     sysroot_dir="/sysroot"
 
-    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
-
     cd "${build_dir}"/builds/${name}
 
     if type -t build >/dev/null; then
@@ -631,8 +617,6 @@ do_package() {
     sysroot_dir="/sysroot"
 
     mkdir -p "${dest_dir}${prefix}"
-
-    [ -f "${JINX_CONFIG_FILE_PATH}" ] && . "${JINX_CONFIG_FILE_PATH}"
 
     cd "${build_dir}"/builds/${name}
 
@@ -1607,14 +1591,14 @@ if ! [ -f "$JINX_CONFIG_FILE_PATH" ]; then
     die "$0: missing Jinx config file in source directory $base_dir"
 fi
 
-JINX_MAJOR_VER_CONFIG="$(. "$JINX_CONFIG_FILE_PATH" && echo "$JINX_MAJOR_VER")"
+. "${JINX_CONFIG_FILE_PATH}"
 
-if [ -z "$JINX_MAJOR_VER_CONFIG" ]; then
+if [ -z "$JINX_MAJOR_VER" ]; then
     die "$0: required config variable \$JINX_MAJOR_VER missing"
 fi
 
-if ! [ "$JINX_MAJOR_VER_CONFIG" = "$jinx_major_ver" ]; then
-    die "$0: needed major version ($JINX_MAJOR_VER_CONFIG) differs from Jinx-provided major version ($jinx_major_ver)"
+if ! [ "$JINX_MAJOR_VER" = "$jinx_major_ver" ]; then
+    die "$0: needed major version ($JINX_MAJOR_VER) differs from Jinx-provided major version ($jinx_major_ver)"
 fi
 
 if ! [ -d "$JINX_CACHE_DIR" ]; then
