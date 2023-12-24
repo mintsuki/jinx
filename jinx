@@ -472,11 +472,7 @@ do_regenerate() {
 
     cd "${source_dir}"
     [ "${is_local_package}" = true ] || container_base_dir_ro=":ro"
-
-    if type -t regenerate >/dev/null; then
-        regenerate
-    fi
-
+    regenerate
     container_base_dir_ro=""
     cd "${base_dir}"
 
@@ -507,11 +503,7 @@ do_build_host() {
     sysroot_dir="/sysroot"
 
     cd "${build_dir}"/host-builds/${name}
-
-    if type -t build >/dev/null; then
-        build
-    fi
-
+    build
     cd "${base_dir}"
 
     touch "${build_dir}"/host-builds/${name}.built
@@ -546,11 +538,7 @@ do_package_host() {
     mkdir -p "${dest_dir}${prefix}"
 
     cd "${build_dir}"/host-builds/${name}
-
-    if type -t package >/dev/null; then
-        package
-    fi
-
+    package
     cd "${base_dir}"
 
     # Remove libtool files
@@ -588,11 +576,7 @@ do_build() {
     sysroot_dir="/sysroot"
 
     cd "${build_dir}"/builds/${name}
-
-    if type -t build >/dev/null; then
-        build
-    fi
-
+    build
     cd "${base_dir}"
 
     touch "${build_dir}"/builds/${name}.built
@@ -627,11 +611,7 @@ do_package() {
     mkdir -p "${dest_dir}${prefix}"
 
     cd "${build_dir}"/builds/${name}
-
-    if type -t package >/dev/null; then
-        package
-    fi
-
+    package
     cd "${base_dir}"
 
     # Remove libtool files
