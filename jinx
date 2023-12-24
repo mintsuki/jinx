@@ -837,46 +837,64 @@ cmd_clean() {
     rm -rf "${build_dir}"/sysroot
 }
 
-cmd_install_finalize() {
-    if [ -f "$JINX_CACHE_DIR/merged-dir" ]; then
-        # inject the merged info dir into sysroot
-        cp "$JINX_CACHE_DIR/merged-dir" "${sysroot}"/usr/share/info/dir
-    fi
-}
-
 cmd_install() {
     sysroot="$1"
     shift 1
     mkdir -p "${sysroot}"
 
-    for ppkg in "$@"; do
-        if [ "${ppkg}" = '*' ]; then
-            for pkg in "${build_dir}"/pkgs/*; do
-                echo "* copying $(basename "${pkg}") to sysroot '${sysroot}'..."
-                "$JINX_CACHE_DIR/cprp" "${pkg}"/. "${sysroot}"/
-            done
-            cmd_install_finalize
-            return
-        fi
-
-        for pkg in $(eval echo pkgs/"${ppkg}"); do
-            deps="${deps} $(basename "${pkg}")"
+    pkgs_to_install=""
+    if [ "$1" = '*' ]; then
+        for pkg in "${build_dir}"/pkgs/*; do
+            pkgs_to_install="${pkgs_to_install} $(basename "${pkg}")"
         done
+    else
+        for ppkg in "$@"; do
+            for pkg in $(eval echo pkgs/"${ppkg}"); do
+                deps="${deps} $(basename "${pkg}")"
+            done
+        done
+
+        make_temp
+        deps_file="${tmp}"
+
+        echo "* resolving dependencies..."
+
+        get_deps_file
+
+        pkgs_to_install="$(cat "${deps_file}")"
+    fi
+
+    make_temp
+    all_files="${tmp}"
+
+    pkg_dirs_to_install=""
+    for pkg in ${pkgs_to_install}; do
+        echo "* installing ${pkg}..."
+        ( cd "${build_dir}"/pkgs/${pkg} && find . ! -type d >>"${all_files}" )
+
+        pkg_dirs_to_install="${pkg_dirs_to_install} ${build_dir}/pkgs/${pkg}/."
     done
 
     make_temp
-    deps_file="${tmp}"
+    all_files_sorted="${tmp}"
 
-    echo "* resolving dependencies..."
+    make_temp
+    all_files_uniq="${tmp}"
 
-    get_deps_file
+    sort <"${all_files}" >"${all_files_sorted}"
+    uniq <"${all_files_sorted}" >"${all_files_uniq}"
+    if ! [ "$(wc -l <"${all_files_sorted}")" = "$(wc -l <"${all_files_uniq}")" ]; then
+        die "* error: duplicate files were found:
+$(comm -23 "${all_files_sorted}" "${all_files_uniq}")"
+    fi
 
-    for pkg in $(cat "${deps_file}"); do
-        echo "* installing ${pkg} to sysroot '${sysroot}'..."
-        "$JINX_CACHE_DIR/cprp" pkgs/"${pkg}"/. "${sysroot}"/
-    done
+    echo "* synchronising package files to sysroot '${sysroot}'..."
+    rsync -urlptD ${pkg_dirs_to_install} "${sysroot}"/
 
-    cmd_install_finalize
+    if [ -f "$JINX_CACHE_DIR/merged-dir" ]; then
+        # inject the merged info dir into sysroot
+        cp "$JINX_CACHE_DIR/merged-dir" "${sysroot}"/usr/share/info/dir
+    fi
 }
 
 rebuild_rbrt() {
