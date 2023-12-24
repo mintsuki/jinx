@@ -662,8 +662,9 @@ do_source() {
 
     if [ "$2" = yes ]; then
         unset deps builddeps hostrundeps
-        imagedeps=${source_imagedeps}
-        hostdeps=${source_hostdeps}
+        imagedeps="${source_imagedeps}"
+        hostdeps="${source_hostdeps}"
+        allow_network="${source_allow_network}"
     fi
 
     get_real_source_dir
