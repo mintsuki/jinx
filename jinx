@@ -1432,7 +1432,7 @@ case "$1" in
         get_hostdeps_file_run
         ;;
     internal-source)
-        do_source "$2" "$3"
+        do_source "$2"
         ;;
     internal-do-host-pkg)
         do_host_pkg "$2"
