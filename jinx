@@ -447,7 +447,7 @@ default_recipe_steps() {
 }
 
 cont_patch() {
-    . "${base_dir}/$1"
+    . "${base_dir}"/source-recipes/$1
 
     get_real_source_dir
 
@@ -480,7 +480,7 @@ cont_patch() {
 do_regenerate() {
     default_recipe_steps
 
-    . "${base_dir}/$1"
+    . "${base_dir}"/source-recipes/$1
 
     get_real_source_dir
 
@@ -502,15 +502,11 @@ do_build_host() {
 
     [ -f "${build_dir}"/host-builds/${name}.built ] && return
 
-    if ! [ -z "${from_source}" ]; then
-        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
-        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    else
-        from_source="${name}"
-    fi
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
     mkdir -p "${build_dir}"/host-builds/${name}
 
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -534,18 +530,14 @@ do_package_host() {
 
     [ -f "${build_dir}"/host-builds/${name}.packaged ] && return
 
-    if ! [ -z "${from_source}" ]; then
-        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
-        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    else
-        from_source="${name}"
-    fi
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
     dest_dir="${build_dir}"/host-pkgs/${name}
 
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
 
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -579,15 +571,11 @@ do_build() {
 
     [ -f "${build_dir}"/builds/${name}.built ] && return
 
-    if ! [ -z "${from_source}" ]; then
-        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
-        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    else
-        from_source="${name}"
-    fi
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
     mkdir -p "${build_dir}"/builds/${name}
 
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -611,18 +599,14 @@ do_package() {
 
     [ -f "${build_dir}"/builds/${name}.packaged ] && return
 
-    if ! [ -z "${from_source}" ]; then
-        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
-        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    else
-        from_source="${name}"
-    fi
+    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
     dest_dir="${build_dir}"/pkgs/${name}
 
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
 
+    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
     if [ -z "${source_dir}" ]; then
         source_dir="${base_dir}"/sources/${from_source}
     else
@@ -657,9 +641,7 @@ do_package() {
 }
 
 precont_patch() {
-    . "${base_dir}/$1"
-
-    [ -f "${base_dir}"/sources/${name}.patched ] && return
+    [ -f "${base_dir}"/sources/$1.patched ] && return
 
     cross_compile=yes
     prepare_container
@@ -668,15 +650,7 @@ precont_patch() {
 }
 
 do_source() {
-    . "${base_dir}/$1"
-
-    [ -f "${base_dir}"/sources/${name}.regenerated ] && return
-
-    if [ "$2" = yes ]; then
-        unset deps builddeps hostrundeps
-        imagedeps=${source_imagedeps}
-        hostdeps=${source_hostdeps}
-    fi
+    . "${base_dir}"/source-recipes/$1
 
     get_real_source_dir
 
@@ -709,9 +683,9 @@ do_cmd_host_rebuild() {
 }
 
 do_cmd_regenerate() {
-    . "${base_dir}/$1"
+    . "${base_dir}"/source-recipes/$1
 
-    [ -f "${base_dir}"/sources/${name}.patched ] || die "cannot regenerate non-built package"
+    [ -f "${base_dir}"/sources/$1.patched ] || die "cannot regenerate non-built package"
 
     get_real_source_dir
 
@@ -721,24 +695,24 @@ do_cmd_regenerate() {
     if ! [ "${is_local_package}" = true ]; then
         cd "${base_dir}"/sources
 
-        git diff --no-index --no-prefix ${name}-clean ${name}-workdir >"${patch_file}" || true
+        git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
 
         if [ -s "${patch_file}" ]; then
-            mkdir -p "${base_dir}"/patches/${name}
-            mv "${patch_file}" "${base_dir}"/patches/${name}/jinx-working-patch.patch
+            mkdir -p "${base_dir}"/patches/$1
+            mv "${patch_file}" "${base_dir}"/patches/$1/jinx-working-patch.patch
         fi
 
         cd "${base_dir}"
 
         rm -rf "${source_dir}"
-        cp -rp "${base_dir}"/sources/${name}-workdir "${source_dir}"
+        cp -rp "${base_dir}"/sources/$1-workdir "${source_dir}"
     fi
 
-    rm -rf "${base_dir}"/sources/${name}.regenerated
+    rm -rf "${base_dir}"/sources/$1.regenerated
 
     cross_compile=yes
     prepare_container
-    run_in_container internal-regenerate ${name}
+    run_in_container internal-regenerate $1
     destroy_container
 }
 
@@ -749,12 +723,9 @@ do_host_pkg() {
 
     echo "* building host package: $name"
 
-    from_source="$(unset from_source && . "${base_dir}"/recipes/$1 && echo "$from_source")"
-    if [ -z "${from_source}" ]; then
-        "${script}" internal-source "host-recipes/${name}" yes
-    else
-        "${script}" internal-source "source-recipes/${from_source}"
-    fi
+    from_source="$(. "${base_dir}"/host-recipes/$1 && echo "$from_source")"
+    [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
+        "${script}" internal-source "${from_source}"
 
     cross_compile=yes
     prepare_container
@@ -774,12 +745,9 @@ do_pkg() {
 
     echo "* building package: $name"
 
-    from_source="$(unset from_source && . "${base_dir}"/recipes/$1 && echo "$from_source")"
-    if [ -z "${from_source}" ]; then
-        "${script}" internal-source "recipes/${name}" yes
-    else
-        "${script}" internal-source "source-recipes/${from_source}"
-    fi
+    from_source="$(. "${base_dir}"/recipes/$1 && echo "$from_source")"
+    [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
+        "${script}" internal-source "${from_source}"
 
     prepare_container
 
