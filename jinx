@@ -749,7 +749,7 @@ do_host_pkg() {
 
     echo "* building host package: $name"
 
-    from_source="$(unset from_source && . "${base_dir}"/host-recipes/$1 && echo "$from_source")"
+    from_source="$(unset from_source && . "${base_dir}"/recipes/$1 && echo "$from_source")"
     if [ -z "${from_source}" ]; then
         "${script}" internal-source "host-recipes/${name}" yes
     else
