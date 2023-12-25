@@ -872,7 +872,7 @@ cmd_install() {
         echo "* installing ${pkg}..."
         ( cd "${build_dir}"/pkgs/${pkg} && find . ! -type d >>"${all_files}" )
 
-        pkg_dirs_to_install="${pkg_dirs_to_install} ${build_dir}/pkgs/${pkg}/."
+        pkg_dirs_to_install="${pkg_dirs_to_install} ${pkg}/."
     done
 
     make_temp
@@ -889,7 +889,8 @@ $(comm -23 "${all_files_sorted}" "${all_files_uniq}")"
     fi
 
     echo "* synchronising package files to sysroot '${sysroot}'..."
-    rsync -urlptD ${pkg_dirs_to_install} "${sysroot}"/
+    sysroot_abs="$(cd "${sysroot}" && pwd -P)"
+    ( cd "${build_dir}/pkgs" && rsync -urlptD ${pkg_dirs_to_install} "${sysroot_abs}"/ )
 
     if [ -f "$JINX_CACHE_DIR/merged-dir" ]; then
         # inject the merged info dir into sysroot
