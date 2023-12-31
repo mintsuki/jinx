@@ -852,17 +852,16 @@ cmd_install() {
 
     sort <"${all_files}" >"${all_files_sorted}"
     uniq <"${all_files_sorted}" >"${all_files_uniq}"
-    if ! [ "$(wc -l <"${all_files_sorted}")" = "$(wc -l <"${all_files_uniq}")" ]; then
-        dup_elements="$(comm -23 "${all_files_sorted}" "${all_files_uniq}" | uniq)"
 
-        for pkg in ${pkgs_to_install}; do
-            for elem in ${dup_elements}; do
-                if [ -f "${build_dir}"/pkgs/${pkg}/${elem} ] || [ -L "${build_dir}"/pkgs/${pkg}/${elem} ]; then
-                    die "* error: duplicate files were found in package '${pkg}': ${elem}"
-                fi
-            done
+    dup_elements="$(comm -23 "${all_files_sorted}" "${all_files_uniq}" | uniq)"
+
+    for pkg in ${pkgs_to_install}; do
+        for elem in ${dup_elements}; do
+            if [ -f "${build_dir}"/pkgs/${pkg}/${elem} ] || [ -L "${build_dir}"/pkgs/${pkg}/${elem} ]; then
+                die "* error: duplicate files were found in package '${pkg}': ${elem}"
+            fi
         done
-    fi
+    done
 
     echo "* synchronising package files to sysroot '${sysroot}'..."
     sysroot_abs="$(cd "${sysroot}" && pwd -P)"
