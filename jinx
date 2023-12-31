@@ -498,19 +498,22 @@ do_regenerate() {
 do_build_host() {
     default_recipe_steps
 
+    unset from_source
     . "${base_dir}"/host-recipes/$1
 
     [ -f "${build_dir}"/host-builds/${name}.built ] && return
 
-    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
-
     mkdir -p "${build_dir}"/host-builds/${name}
 
-    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    if [ -z "${source_dir}" ]; then
-        source_dir="${base_dir}"/sources/${from_source}
-    else
-        source_dir="${base_dir}"/"${source_dir}"
+    if ! [ -z "${from_source}" ]; then
+        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
+        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
+        if [ -z "${source_dir}" ]; then
+            source_dir="${base_dir}"/sources/${from_source}
+        else
+            source_dir="${base_dir}"/"${source_dir}"
+        fi
     fi
 
     prefix="/usr/local"
@@ -526,22 +529,25 @@ do_build_host() {
 do_package_host() {
     default_recipe_steps
 
+    unset from_source
     . "${base_dir}"/host-recipes/$1
 
     [ -f "${build_dir}"/host-builds/${name}.packaged ] && return
-
-    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
     dest_dir="${build_dir}"/host-pkgs/${name}
 
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
 
-    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    if [ -z "${source_dir}" ]; then
-        source_dir="${base_dir}"/sources/${from_source}
-    else
-        source_dir="${base_dir}"/"${source_dir}"
+    if ! [ -z "${from_source}" ]; then
+        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
+        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
+        if [ -z "${source_dir}" ]; then
+            source_dir="${base_dir}"/sources/${from_source}
+        else
+            source_dir="${base_dir}"/"${source_dir}"
+        fi
     fi
 
     prefix="/usr/local"
@@ -567,19 +573,22 @@ do_package_host() {
 do_build() {
     default_recipe_steps
 
+    unset from_source
     . "${base_dir}"/recipes/$1
 
     [ -f "${build_dir}"/builds/${name}.built ] && return
 
-    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
-
     mkdir -p "${build_dir}"/builds/${name}
 
-    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    if [ -z "${source_dir}" ]; then
-        source_dir="${base_dir}"/sources/${from_source}
-    else
-        source_dir="${base_dir}"/"${source_dir}"
+    if ! [ -z "${from_source}" ]; then
+        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
+        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
+        if [ -z "${source_dir}" ]; then
+            source_dir="${base_dir}"/sources/${from_source}
+        else
+            source_dir="${base_dir}"/"${source_dir}"
+        fi
     fi
 
     prefix="/usr"
@@ -595,22 +604,25 @@ do_build() {
 do_package() {
     default_recipe_steps
 
+    unset from_source
     . "${base_dir}"/recipes/$1
 
     [ -f "${build_dir}"/builds/${name}.packaged ] && return
-
-    version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
 
     dest_dir="${build_dir}"/pkgs/${name}
 
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
 
-    source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
-    if [ -z "${source_dir}" ]; then
-        source_dir="${base_dir}"/sources/${from_source}
-    else
-        source_dir="${base_dir}"/"${source_dir}"
+    if ! [ -z "${from_source}" ]; then
+        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+
+        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
+        if [ -z "${source_dir}" ]; then
+            source_dir="${base_dir}"/sources/${from_source}
+        else
+            source_dir="${base_dir}"/"${source_dir}"
+        fi
     fi
 
     prefix="/usr"
@@ -717,15 +729,18 @@ do_cmd_regenerate() {
 }
 
 do_host_pkg() {
+    unset from_source
     . "${base_dir}"/host-recipes/$1
 
     [ -f "${build_dir}"/host-builds/${name}.packaged ] && return
 
     echo "* building host package: $name"
 
-    from_source="$(. "${base_dir}"/host-recipes/$1 && echo "$from_source")"
-    [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
-        "${script}" internal-source "${from_source}"
+    if ! [ -z "${from_source}" ]; then
+        from_source="$(. "${base_dir}"/host-recipes/$1 && echo "$from_source")"
+        [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
+            "${script}" internal-source "${from_source}"
+    fi
 
     cross_compile=yes
     prepare_container
@@ -739,15 +754,18 @@ do_host_pkg() {
 }
 
 do_pkg() {
+    unset from_source
     . "${base_dir}"/recipes/$1
 
     [ -f "${build_dir}"/builds/${name}.packaged ] && return
 
     echo "* building package: $name"
 
-    from_source="$(. "${base_dir}"/recipes/$1 && echo "$from_source")"
-    [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
-        "${script}" internal-source "${from_source}"
+    if ! [ -z "${from_source}" ]; then
+        from_source="$(. "${base_dir}"/recipes/$1 && echo "$from_source")"
+        [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
+            "${script}" internal-source "${from_source}"
+    fi
 
     prepare_container
 
