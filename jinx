@@ -46,12 +46,13 @@ if ! [ "$(uname -s)" = "Linux" ]; then
 fi
 
 if [ -z "$JINX_PARALLELISM" ]; then
-    max_threads_by_mem="$(( $(free | awk '/^Mem:/{print $2}') / 1024 / 1024 / 2 ))"
+    max_threads_by_mem="$(( ((($(free | awk '/^Mem:/{print $2}') + 1048575) / 1048576) + 1) / 2 ))"
     parallelism="$(nproc 2>/dev/null || echo 1)"
     parallelism="$(( $parallelism < $max_threads_by_mem ? $parallelism : $max_threads_by_mem ))"
 else
     parallelism="$JINX_PARALLELISM"
 fi
+
 build_dir="$(pwd -P)"
 
 if [ -z "$JINX_SOURCE_DIR" ]; then
