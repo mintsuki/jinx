@@ -468,8 +468,22 @@ default_recipe_steps() {
     }
 }
 
+source_source_recipe() {
+    if [ -f "${base_dir}"/source-recipes/$1 ]; then
+        . "${base_dir}"/source-recipes/$1
+    elif [ -f "${base_dir}"/recipes/$1 ]; then
+        . "${base_dir}"/recipes/$1
+
+        imagedeps="${source_imagedeps}"
+        hostdeps="${source_hostdeps}"
+        allow_network="${source_allow_network}"
+    else
+        die "* could not find source recipe '$1'"
+    fi
+}
+
 cont_patch() {
-    . "${base_dir}"/source-recipes/$1
+    source_source_recipe $1
 
     get_real_source_dir
 
@@ -502,7 +516,7 @@ cont_patch() {
 do_regenerate() {
     default_recipe_steps
 
-    . "${base_dir}"/source-recipes/$1
+    source_source_recipe $1
 
     get_real_source_dir
 
@@ -599,10 +613,14 @@ do_build() {
 
     mkdir -p "${build_dir}"/builds/${name}
 
-    if ! [ -z "${from_source}" ]; then
-        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+    if ! [ -z "${from_source}" ] || ! [ -z "${tarball_url}" ] || ! [ -z "${source_dir}" ]; then
+        if ! [ -z "${from_source}" ]; then
+            version=$(unset version && source_source_recipe ${from_source} && echo "$version")
+            source_dir="$(unset source_dir && source_source_recipe ${from_source} && echo "$source_dir")"
+        else
+            from_source=${name}
+        fi
 
-        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
         if [ -z "${source_dir}" ]; then
             source_dir="${base_dir}"/sources/${from_source}
         else
@@ -633,10 +651,14 @@ do_package() {
     rm -rf "${dest_dir}"
     mkdir -p "${dest_dir}"
 
-    if ! [ -z "${from_source}" ]; then
-        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+    if ! [ -z "${from_source}" ] || ! [ -z "${tarball_url}" ] || ! [ -z "${source_dir}" ]; then
+        if ! [ -z "${from_source}" ]; then
+            version=$(unset version && source_source_recipe ${from_source} && echo "$version")
+            source_dir="$(unset source_dir && source_source_recipe ${from_source} && echo "$source_dir")"
+        else
+            from_source=${name}
+        fi
 
-        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
         if [ -z "${source_dir}" ]; then
             source_dir="${base_dir}"/sources/${from_source}
         else
@@ -671,7 +693,7 @@ precont_patch() {
 }
 
 do_source() {
-    . "${base_dir}"/source-recipes/$1
+    source_source_recipe $1
 
     get_real_source_dir
 
@@ -704,7 +726,7 @@ do_cmd_host_rebuild() {
 }
 
 do_cmd_regenerate() {
-    . "${base_dir}"/source-recipes/$1
+    source_source_recipe $1
 
     [ -f "${base_dir}"/sources/$1.patched ] || die "cannot regenerate non-built package"
 
@@ -774,6 +796,10 @@ do_pkg() {
         from_source="$(. "${base_dir}"/recipes/$1 && echo "$from_source")"
         [ -f "${base_dir}"/sources/${from_source}.regenerated ] || \
             "${script}" internal-source "${from_source}"
+    fi
+
+    if ! [ -z "${tarball_url}" ] || ! [ -z "${source_dir}" ]; then
+        "${script}" internal-source "${name}"
     fi
 
     prepare_container
