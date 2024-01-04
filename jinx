@@ -545,9 +545,9 @@ do_build_host() {
     mkdir -p "${build_dir}"/host-builds/${name}
 
     if ! [ -z "${from_source}" ]; then
-        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+        version=$(unset version && source_source_recipe ${from_source} && echo "$version")
+        source_dir="$(unset source_dir && source_source_recipe ${from_source} && echo "$source_dir")"
 
-        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
         if [ -z "${source_dir}" ]; then
             source_dir="${base_dir}"/sources/${from_source}
         else
@@ -579,9 +579,9 @@ do_package_host() {
     mkdir -p "${dest_dir}"
 
     if ! [ -z "${from_source}" ]; then
-        version=$(. "${base_dir}"/source-recipes/${from_source} && echo "$version")
+        version=$(unset version && source_source_recipe ${from_source} && echo "$version")
+        source_dir="$(unset source_dir && source_source_recipe ${from_source} && echo "$source_dir")"
 
-        source_dir="$(. "${base_dir}"/source-recipes/${from_source} && echo "$source_dir")"
         if [ -z "${source_dir}" ]; then
             source_dir="${base_dir}"/sources/${from_source}
         else
