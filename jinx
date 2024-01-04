@@ -474,6 +474,9 @@ source_source_recipe() {
     elif [ -f "${base_dir}"/recipes/$1 ]; then
         . "${base_dir}"/recipes/$1
 
+        unset deps
+        unset builddeps
+        unset hostrundeps
         imagedeps="${source_imagedeps}"
         hostdeps="${source_hostdeps}"
         allow_network="${source_allow_network}"
