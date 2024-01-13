@@ -479,6 +479,7 @@ source_source_recipe() {
         unset hostrundeps
         imagedeps="${source_imagedeps}"
         hostdeps="${source_hostdeps}"
+        deps="${source_deps}"
         allow_network="${source_allow_network}"
     else
         die "* could not find source recipe '$1'"
@@ -524,6 +525,8 @@ do_regenerate() {
     get_real_source_dir
 
     [ -f "${base_dir}"/sources/${name}.regenerated ] && return
+
+    sysroot_dir="/sysroot"
 
     cd "${source_dir}"
     [ "${is_local_package}" = true ] || container_base_dir_ro=":ro"
