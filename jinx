@@ -48,9 +48,15 @@ if ! [ "$(uname -s)" = "Linux" ]; then
     die "$0: Jinx only supports running on Linux hosts."
 fi
 
-if [ "$(id -u)" = "0" ]; then
-    die "$0: Jinx does not support running as root."
-fi
+case "$1" in
+    install|sysroot)
+        ;;
+    *)
+        if [ "$(id -u)" = "0" ]; then
+            die "$0: Jinx does not support running as root."
+        fi
+        ;;
+esac
 
 if [ -z "$JINX_PARALLELISM" ]; then
     max_threads_by_mem="$(( ((($(free | awk '/^Mem:/{print $2}') + 1048575) / 1048576) + 1) / 2 ))"
