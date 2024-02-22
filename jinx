@@ -33,6 +33,8 @@ jinx_version="${jinx_major_ver}.${jinx_minor_ver}"
 archlinux_snapshot_date="2024.02.01"
 archlinux_snapshot_b2sum=e453387c25aef7f4818729aec44281d57f5f7fca68dbcd8cac5942063c7813c7d2ea704bc31f9e0929c5ba2d639e648788711eafb993df7bb971d3e808def2f8
 
+XSTOW_VERSION=1.1.1
+
 IFS=" ""	"'
 '
 
@@ -111,7 +113,7 @@ fi
 pacman_cache="$JINX_CACHE_DIR/pacman"
 
 temp_collect=""
-trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
+trap 'chmod -R 777 $temp_collect >/dev/null 2>&1 || true; rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
 
 make_temp() {
     tmp="$(mktemp $1 "$JINX_CACHE_DIR/tmp.XXXXXXXX")"
@@ -1402,16 +1404,15 @@ reinit_container() {
         chmod 755 "$f"
     done
 
-    (
-    set -e
-    cd "$JINX_CACHE_DIR"
-    curl -Lo xstow-1.1.1.tar.gz https://github.com/majorkingleo/xstow/releases/download/1.1.1/xstow-1.1.1.tar.gz
-    tar -xf xstow-1.1.1.tar.gz
-    cd xstow-1.1.1
-    ./configure LDFLAGS="-static" --enable-static --enable-merge-info --without-curses
-    make -j${parallelism}
-    mv src/merge-info "$JINX_CACHE_DIR/"
-    )
+    # Build xstow
+    make_temp -d
+    XSTOW_BUILDENV="${tmp}"
+    cp -Pplrf "$JINX_CACHE_DIR/sets/.image/." "${XSTOW_BUILDENV}/"
+    curl -Lo "${XSTOW_BUILDENV}/xstow-${XSTOW_VERSION}.tar.gz" https://github.com/majorkingleo/xstow/releases/download/${XSTOW_VERSION}/xstow-${XSTOW_VERSION}.tar.gz
+    ( cd "${XSTOW_BUILDENV}" && tar -xf xstow-${XSTOW_VERSION}.tar.gz )
+    run_in_container1 "${XSTOW_BUILDENV}" pacman --needed --noconfirm -S base-devel
+    run_in_container1 "${XSTOW_BUILDENV}" sh -c "cd /xstow-${XSTOW_VERSION} && ./configure LDFLAGS='-static' --enable-static --enable-merge-info --without-curses && make -j${parallelism}"
+    mv "${XSTOW_BUILDENV}/xstow-${XSTOW_VERSION}/src/merge-info" "$JINX_CACHE_DIR/"
 }
 
 first_use() {
