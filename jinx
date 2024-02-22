@@ -113,7 +113,7 @@ fi
 pacman_cache="$JINX_CACHE_DIR/pacman"
 
 temp_collect=""
-trap 'chmod -R 777 $temp_collect >/dev/null 2>&1 || true; rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
+trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
 
 make_temp() {
     tmp="$(mktemp $1 "$JINX_CACHE_DIR/tmp.XXXXXXXX")"
@@ -1657,8 +1657,7 @@ reinit_container() {
     done
 
     # Build xstow
-    make_temp -d
-    XSTOW_BUILDENV="${tmp}"
+    XSTOW_BUILDENV="$JINX_CACHE_DIR/xstow_buildenv"
     cp -Pplrf "$JINX_CACHE_DIR/sets/.image/." "${XSTOW_BUILDENV}/"
     curl -Lo "${XSTOW_BUILDENV}/xstow-${XSTOW_VERSION}.tar.gz" https://github.com/majorkingleo/xstow/releases/download/${XSTOW_VERSION}/xstow-${XSTOW_VERSION}.tar.gz
     ( cd "${XSTOW_BUILDENV}" && tar -xf xstow-${XSTOW_VERSION}.tar.gz )
