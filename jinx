@@ -1385,6 +1385,7 @@ reinit_container() {
         die "Jinx: Failed to verify Arch Linux bootstrap tarball"
     fi
     ( cd "$JINX_CACHE_DIR" && bsdtar -zxf arch-root.tar.gz )
+    rm "$JINX_CACHE_DIR/arch-root.tar.gz"
     mkdir -p "$JINX_CACHE_DIR/sets"
     mv "$JINX_CACHE_DIR/root.x86_64" "$JINX_CACHE_DIR/sets/.image"
 
