@@ -41,6 +41,8 @@ IFS=" ""	"'
 LC_COLLATE=C
 export LC_COLLATE
 
+umask 0022
+
 die() {
     echo "$1"
     exit 1
@@ -104,6 +106,8 @@ if ! [ -d "$(dirname "$JINX_CACHE_DIR")" ]; then
 fi
 mkdir -p "$JINX_CACHE_DIR"
 JINX_CACHE_DIR="$(cd "$JINX_CACHE_DIR" && pwd -P)"
+
+chmod 755 "$JINX_CACHE_DIR"
 
 in_container=false
 if [ "$script" = "//jinx" ]; then
