@@ -260,7 +260,7 @@ prepare_container() {
             mv "${build_dir}"/pkgs/${dep}/usr/share/info/dir "$JINX_CACHE_DIR"/saved-info-dir
         fi
         copy_failed=0
-        cp -Pplrn "${build_dir}"/pkgs/${dep} "${sysroot_dir}"/ || copy_failed=1
+        cp -Pplrn "${build_dir}"/pkgs/${dep}/. "${sysroot_dir}"/ || copy_failed=1
         if [ -f "$JINX_CACHE_DIR"/saved-info-dir ]; then
             mv "$JINX_CACHE_DIR"/saved-info-dir "${build_dir}"/pkgs/${dep}/usr/share/info/dir
         fi
@@ -277,7 +277,7 @@ prepare_container() {
                 mv "${build_dir}"/host-pkgs/${hostdep}/usr/local/share/info/dir "$JINX_CACHE_DIR"/saved-info-dir
             fi
             copy_failed=0
-            cp -Pplrn "${build_dir}"/host-pkgs/${hostdep}/usr/local "${container_pkgs}"/ || copy_failed=1
+            cp -Pplrn "${build_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/ || copy_failed=1
             if [ -f "$JINX_CACHE_DIR"/saved-info-dir ]; then
                 mv "$JINX_CACHE_DIR"/saved-info-dir "${build_dir}"/host-pkgs/${hostdep}/usr/local/share/info/dir
             fi
@@ -1673,7 +1673,7 @@ reinit_container() {
 
     # Build xstow
     XSTOW_BUILDENV="$JINX_CACHE_DIR/xstow_buildenv"
-    cp -Pplrf "$JINX_CACHE_DIR/sets/.image" "${XSTOW_BUILDENV}/"
+    cp -Pplrf "$JINX_CACHE_DIR/sets/.image/." "${XSTOW_BUILDENV}/"
     curl -Lo "${XSTOW_BUILDENV}/xstow-${XSTOW_VERSION}.tar.gz" https://github.com/majorkingleo/xstow/releases/download/${XSTOW_VERSION}/xstow-${XSTOW_VERSION}.tar.gz
     ( cd "${XSTOW_BUILDENV}" && tar -xf xstow-${XSTOW_VERSION}.tar.gz )
     run_in_container1 "${XSTOW_BUILDENV}" pacman --needed --noconfirm -S base-devel
