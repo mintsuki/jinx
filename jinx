@@ -235,6 +235,30 @@ run_in_container1() {
         "$@"
 }
 
+check_duplicates() {
+    make_temp
+    all_files="${tmp}"
+
+    ( cd "$1" && find . ) >"$all_files"
+
+    make_temp
+    all_files_sorted="${tmp}"
+
+    make_temp
+    all_files_uniq="${tmp}"
+
+    sort <"${all_files}" >"${all_files_sorted}"
+    uniq <"${all_files_sorted}" >"${all_files_uniq}"
+
+    dup_elements="$(comm -23 "${all_files_sorted}" "${all_files_uniq}" | uniq)"
+
+    for elem in ${dup_elements}; do
+        if [ -f "$2"/${elem} ] || [ -L "$2"/${elem} ]; then
+            return 1
+        fi
+    done
+}
+
 prepare_container() {
     cd "${build_dir}"
 
@@ -260,7 +284,8 @@ prepare_container() {
             mv "${build_dir}"/pkgs/${dep}/usr/share/info/dir "$JINX_CACHE_DIR"/saved-info-dir
         fi
         copy_failed=0
-        cp -Pplrn "${build_dir}"/pkgs/${dep}/. "${sysroot_dir}"/ || copy_failed=1
+        check_duplicates "${build_dir}"/pkgs/${dep} "${sysroot_dir}" || copy_failed=1
+        cp -Pplr "${build_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
         if [ -f "$JINX_CACHE_DIR"/saved-info-dir ]; then
             mv "$JINX_CACHE_DIR"/saved-info-dir "${build_dir}"/pkgs/${dep}/usr/share/info/dir
         fi
@@ -277,7 +302,8 @@ prepare_container() {
                 mv "${build_dir}"/host-pkgs/${hostdep}/usr/local/share/info/dir "$JINX_CACHE_DIR"/saved-info-dir
             fi
             copy_failed=0
-            cp -Pplrn "${build_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/ || copy_failed=1
+            check_duplicates "${build_dir}"/host-pkgs/${hostdep}/usr/local "${container_pkgs}" || copy_failed=1
+            cp -Pplr "${build_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
             if [ -f "$JINX_CACHE_DIR"/saved-info-dir ]; then
                 mv "$JINX_CACHE_DIR"/saved-info-dir "${build_dir}"/host-pkgs/${hostdep}/usr/local/share/info/dir
             fi
