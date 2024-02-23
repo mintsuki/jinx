@@ -55,7 +55,7 @@ fi
 make_dir() {
     for d in "$@"; do
         mkdir -p "$d"
-        dn="$d"
+        dn="$(cd "$d" && pwd -P)"
         while true; do
             if [ "$dn" = "$base_dir" ] || [ "$dn" = "$build_dir" ] || [ "$dn" = "/" ]; then
                 break
