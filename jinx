@@ -1692,12 +1692,14 @@ reinit_container() {
 
     # Build xstow
     XSTOW_BUILDENV="$JINX_CACHE_DIR/xstow_buildenv"
-    cp -Pplrf "$JINX_CACHE_DIR/sets/.image/." "${XSTOW_BUILDENV}/"
+    cp -Pprf "$JINX_CACHE_DIR/sets/.image/." "${XSTOW_BUILDENV}/"
     curl -Lo "${XSTOW_BUILDENV}/xstow-${XSTOW_VERSION}.tar.gz" https://github.com/majorkingleo/xstow/releases/download/${XSTOW_VERSION}/xstow-${XSTOW_VERSION}.tar.gz
     ( cd "${XSTOW_BUILDENV}" && tar -xf xstow-${XSTOW_VERSION}.tar.gz )
     run_in_container1 "${XSTOW_BUILDENV}" pacman --needed --noconfirm -S base-devel
     run_in_container1 "${XSTOW_BUILDENV}" sh -c "cd /xstow-${XSTOW_VERSION} && ./configure LDFLAGS='-static' --enable-static --enable-merge-info --without-curses && make -j${parallelism}"
     mv "${XSTOW_BUILDENV}/xstow-${XSTOW_VERSION}/src/merge-info" "$JINX_CACHE_DIR/"
+    chmod -R 777 "$XSTOW_BUILDENV"
+    rm -rf "$XSTOW_BUILDENV"
 }
 
 first_use() {
