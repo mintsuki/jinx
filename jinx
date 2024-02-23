@@ -52,6 +52,19 @@ if ! [ "$(uname -s)" = "Linux" ]; then
     die "$0: Jinx only supports running on Linux hosts."
 fi
 
+make_dir() {
+    for d in "$@"; do
+        mkdir -p "$d"
+        (
+        set -e
+        IFS=/
+        for n in "$d"; do
+            chmod 755 "$n"
+        done
+        )
+    done
+}
+
 case "$1" in
     install|sysroot)
         ;;
@@ -104,7 +117,7 @@ fi
 if ! [ -d "$(dirname "$JINX_CACHE_DIR")" ]; then
     die "$0: cannot access cache directory parent"
 fi
-mkdir -m 755 -p "$JINX_CACHE_DIR"
+make_dir "$JINX_CACHE_DIR"
 JINX_CACHE_DIR="$(cd "$JINX_CACHE_DIR" && pwd -P)"
 
 in_container=false
@@ -283,7 +296,7 @@ prepare_container() {
                 continue
             fi
 
-            mkdir -m 755 -p "$JINX_CACHE_DIR/sets/${pkgset}"
+            make_dir "$JINX_CACHE_DIR/sets/${pkgset}"
 
             cp -Pplrf "$JINX_CACHE_DIR/sets/${pkgset}../.image" "$JINX_CACHE_DIR/sets/${pkgset}.image"
 
@@ -319,11 +332,11 @@ run_in_container() {
     touch "${imgroot}/jinx"
     chmod +x "${imgroot}/jinx"
     touch "${imgroot}/jinx-config"
-    mkdir -m 755 -p "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
+    make_dir "${imgroot}/base_dir" "${imgroot}/sources" "${imgroot}/build_dir"
 
     native_mode_mounts=""
     if ( [ "$JINX_NATIVE_MODE" = "yes" ] && [ "$cross_compile" = "yes" ] ) || ( ! [ "$JINX_NATIVE_MODE" = "yes" ] ); then
-        mkdir -m 755 -p "${imgroot}/sysroot"
+        make_dir "${imgroot}/sysroot"
 
         native_mode_mounts=y
 
@@ -401,7 +414,7 @@ destroy_container() {
 }
 
 do_fetch() {
-    mkdir -m 755 -p "${base_dir}"/sources
+    make_dir "${base_dir}"/sources
 
     [ -d "${source_dir}" ] && return
 
@@ -455,7 +468,7 @@ do_fetch() {
     ( cd "${extract_dir}" && tar -xf "${tarball_path}" )
 
     mv "${extract_dir}"/* "${base_dir}"/sources/${name} >/dev/null 2>&1 || (
-        mkdir -m 755 -p "${base_dir}"/sources/${name}
+        make_dir "${base_dir}"/sources/${name}
         mv "${extract_dir}"/* "${base_dir}"/sources/${name}/
     )
 
@@ -509,7 +522,7 @@ cont_patch() {
     get_real_source_dir
 
     patch_trash="/tmp/patch_trash"
-    mkdir -m 755 -p "$patch_trash"
+    make_dir "$patch_trash"
 
     cd "${source_dir}"
 
@@ -562,7 +575,7 @@ do_build_host() {
 
     [ -f "${build_dir}"/host-builds/${name}.built ] && return
 
-    mkdir -m 755 -p "${build_dir}"/host-builds/${name}
+    make_dir "${build_dir}"/host-builds/${name}
 
     if ! [ -z "${from_source}" ]; then
         version=$(unset version && source_source_recipe ${from_source} && echo "$version")
@@ -596,7 +609,7 @@ do_package_host() {
     dest_dir="${build_dir}"/host-pkgs/${name}
 
     rm -rf "${dest_dir}"
-    mkdir -m 755 -p "${dest_dir}"
+    make_dir "${dest_dir}"
 
     if ! [ -z "${from_source}" ]; then
         version=$(unset version && source_source_recipe ${from_source} && echo "$version")
@@ -612,7 +625,7 @@ do_package_host() {
     prefix="/usr/local"
     sysroot_dir="/sysroot"
 
-    mkdir -m 755 -p "${dest_dir}${prefix}"
+    make_dir "${dest_dir}${prefix}"
 
     cd "${build_dir}"/host-builds/${name}
     package
@@ -634,7 +647,7 @@ do_build() {
 
     [ -f "${build_dir}"/builds/${name}.built ] && return
 
-    mkdir -m 755 -p "${build_dir}"/builds/${name}
+    make_dir "${build_dir}"/builds/${name}
 
     if ! [ -z "${from_source}" ] || ! [ -z "${tarball_url}" ] || ! [ -z "${source_dir}" ]; then
         if ! [ -z "${from_source}" ]; then
@@ -672,7 +685,7 @@ do_package() {
     dest_dir="${build_dir}"/pkgs/${name}
 
     rm -rf "${dest_dir}"
-    mkdir -m 755 -p "${dest_dir}"
+    make_dir "${dest_dir}"
 
     if ! [ -z "${from_source}" ] || ! [ -z "${tarball_url}" ] || ! [ -z "${source_dir}" ]; then
         if ! [ -z "${from_source}" ]; then
@@ -692,7 +705,7 @@ do_package() {
     prefix="/usr"
     sysroot_dir="/sysroot"
 
-    mkdir -m 755 -p "${dest_dir}${prefix}"
+    make_dir "${dest_dir}${prefix}"
 
     cd "${build_dir}"/builds/${name}
     package
@@ -764,7 +777,7 @@ do_cmd_regenerate() {
         git diff --no-index --no-prefix $1-clean $1-workdir >"${patch_file}" || true
 
         if [ -s "${patch_file}" ]; then
-            mkdir -m 755 -p "${base_dir}"/patches/$1
+            make_dir "${base_dir}"/patches/$1
             mv "${patch_file}" "${base_dir}"/patches/$1/jinx-working-patch.patch
         fi
 
@@ -883,7 +896,7 @@ cmd_clean() {
 cmd_install() {
     sysroot="$1"
     shift 1
-    mkdir -m 755 -p "${sysroot}"
+    make_dir "${sysroot}"
 
     pkgs_to_install=""
     if [ "$1" = '*' ]; then
@@ -1631,7 +1644,7 @@ reinit_container() {
     chmod -R 777 "$JINX_CACHE_DIR/pacman" 2>/dev/null || true
     rm -rf "$JINX_CACHE_DIR/arch-root.tar.gz" "$JINX_CACHE_DIR/sets" "$JINX_CACHE_DIR/pacman"
 
-    mkdir -m 755 -p "${pacman_cache}"
+    make_dir "${pacman_cache}"
 
     curl -L -o "$JINX_CACHE_DIR/arch-root.tar.gz" https://archive.archlinux.org/iso/${archlinux_snapshot_date}/archlinux-bootstrap-x86_64.tar.gz
     if ! "$JINX_CACHE_DIR/b2sum" "$JINX_CACHE_DIR/arch-root.tar.gz" | grep "${archlinux_snapshot_b2sum}" >/dev/null 2>&1; then
@@ -1639,12 +1652,12 @@ reinit_container() {
     fi
     ( cd "$JINX_CACHE_DIR" && bsdtar -zxf arch-root.tar.gz )
     rm "$JINX_CACHE_DIR/arch-root.tar.gz"
-    mkdir -m 755 -p "$JINX_CACHE_DIR/sets"
+    make_dir "$JINX_CACHE_DIR/sets"
     mv "$JINX_CACHE_DIR/root.x86_64" "$JINX_CACHE_DIR/sets/.image"
 
     echo "Server = https://archive.archlinux.org/repos/$(echo ${archlinux_snapshot_date} | sed 's|\.|/|g')/\$repo/os/\$arch" > "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/mirrorlist"
     echo 'en_US.UTF-8 UTF-8' > "$JINX_CACHE_DIR/sets/.image/etc/locale.gen"
-    mkdir -m 755 "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/gnupg"
+    make_dir "$JINX_CACHE_DIR/sets/.image/etc/pacman.d/gnupg"
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" locale-gen
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --init
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --populate archlinux
@@ -1671,7 +1684,7 @@ reinit_container() {
 first_use() {
     echo "* preparing Jinx cache..."
 
-    mkdir -m 755 -p "$JINX_CACHE_DIR"
+    make_dir "$JINX_CACHE_DIR"
 
     rebuild_b2sum
     rebuild_rbrt
