@@ -55,13 +55,14 @@ fi
 make_dir() {
     for d in "$@"; do
         mkdir -p "$d"
-        (
-        set -e
-        IFS=/
-        for n in "$d"; do
-            chmod 755 "$n"
+        dn="$d"
+        while true; do
+            if [ "$dn" = "$base_dir" ]; then
+                break
+            fi
+            chmod 755 "$dn"
+            dn="$(dirname "$dn")"
         done
-        )
     done
 }
 
