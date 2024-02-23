@@ -57,7 +57,7 @@ make_dir() {
         mkdir -p "$d"
         dn="$d"
         while true; do
-            if [ "$dn" = "$base_dir" ]; then
+            if [ "$dn" = "$base_dir" ] || [ "$dn" = "$build_dir" ] || [ "$dn" = "/" ]; then
                 break
             fi
             chmod 755 "$dn"
@@ -126,14 +126,22 @@ if [ "$script" = "//jinx" ]; then
     in_container=true
 fi
 
+if [ "$in_container" = "false" ]; then
+    make_dir "${base_dir}/sources" "${build_dir}/host-builds" "${build_dir}/host-pkgs" "${build_dir}/builds" "${build_dir}/pkgs"
+fi
+
 pacman_cache="$JINX_CACHE_DIR/pacman"
 
 temp_collect=""
 trap 'rm -rf $temp_collect; trap - EXIT; exit' EXIT INT TERM QUIT HUP
 
 make_temp() {
-    tmp="$(mktemp $1 "$JINX_CACHE_DIR/tmp.XXXXXXXX")"
+    tmp="$(mktemp "$JINX_CACHE_DIR/tmp.XXXXXXXX")"
     temp_collect="${temp_collect} ${tmp}"
+    if [ "$1" = "-d" ]; then
+        rm -f "${tmp}"
+        make_dir "${tmp}"
+    fi
 }
 
 build_hostdeps() {
@@ -270,13 +278,13 @@ prepare_container() {
         fi
         copy_failed=0
         check_duplicates "${build_dir}"/pkgs/${dep} "${sysroot_dir}" || copy_failed=1
+        cp -Pplr "${build_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
         if [ -f "$JINX_CACHE_DIR"/saved-info-dir ]; then
             mv "$JINX_CACHE_DIR"/saved-info-dir "${build_dir}"/pkgs/${dep}/usr/share/info/dir
         fi
         if [ "$copy_failed" = 1 ]; then
             die "jinx: error: Dependency '${dep}' contains file confilcts"
         fi
-        cp -Pplr "${build_dir}"/pkgs/${dep}/. "${sysroot_dir}"/
     done
 
     if [ "$JINX_NATIVE_MODE" = "yes" ] && [ -z "$cross_compile" ]; then
@@ -288,13 +296,13 @@ prepare_container() {
             fi
             copy_failed=0
             check_duplicates "${build_dir}"/host-pkgs/${hostdep}/usr/local "${container_pkgs}" || copy_failed=1
+            cp -Pplr "${build_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
             if [ -f "$JINX_CACHE_DIR"/saved-info-dir ]; then
                 mv "$JINX_CACHE_DIR"/saved-info-dir "${build_dir}"/host-pkgs/${hostdep}/usr/local/share/info/dir
             fi
             if [ "$copy_failed" = 1 ]; then
                 die "jinx: error: Dependency '${hostdep}' contains file confilcts"
             fi
-            cp -Pplr "${build_dir}"/host-pkgs/${hostdep}/usr/local/. "${container_pkgs}"/
         done
 
         imagedeps="$(echo "${imagedeps}" | xargs -n1 | sort -u | xargs)"
@@ -532,8 +540,8 @@ cont_patch() {
 
     get_real_source_dir
 
-    patch_trash="/tmp/patch_trash"
-    make_dir "$patch_trash"
+    make_temp
+    patch_trash="${tmp}"
 
     cd "${source_dir}"
 
