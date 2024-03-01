@@ -319,6 +319,8 @@ prepare_container() {
 
             cp -Pplrf "$JINX_CACHE_DIR/sets/${pkgset}../.image" "$JINX_CACHE_DIR/sets/${pkgset}.image"
 
+            rm -f "$JINX_CACHE_DIR/sets/${pkgset}.image/.jinx-set-valid"
+
             if ! run_in_container1 "$JINX_CACHE_DIR/sets/${pkgset}.image" pacman --needed --noconfirm -S "${pkg}"; then
                 die 'Jinx error: Installing an imagedep failed.'
             fi
