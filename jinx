@@ -919,7 +919,7 @@ cmd_clean() {
 cmd_install() {
     sysroot="$1"
     shift 1
-    make_dir "${sysroot}"
+    mkdir -m 755 -p "${sysroot}"
 
     pkgs_to_install=""
     if [ "$1" = '*' ]; then
