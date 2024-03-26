@@ -1686,6 +1686,8 @@ reinit_container() {
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman-key --populate archlinux
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Sy archlinux-keyring
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -S pacman pacman-mirrorlist
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 25/g' /etc/pacman.conf
+    run_in_container1 "$JINX_CACHE_DIR/sets/.image" sed -i 's/#Color/Color/g' /etc/pacman.conf
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --noconfirm -Syu
     run_in_container1 "$JINX_CACHE_DIR/sets/.image" pacman --needed --noconfirm -S bison diffutils docbook-xsl doxygen flex gettext inetutils libtool libxslt m4 make patch perl python texinfo w3m which xmlto
 
