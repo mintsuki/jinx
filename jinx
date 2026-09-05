@@ -340,6 +340,7 @@ local builddeps=
 local hostdeps=
 local hostrundeps=
 local imagedeps=
+local imagerundeps=
 local allow_network=
 local source_deps=
 local source_hostdeps=
@@ -695,6 +696,13 @@ prepare_container() {
         done
         container_pkgs="${host_root}/usr/local"
         mkdir -p "${container_pkgs}"
+
+        local _imagerundep
+        for hostdep in "${!_hostdeps_collected[@]}"; do
+            for _imagerundep in $(eval "$(include_recipe "${base_dir}/host-recipes/${hostdep}")" && echo "${imagerundeps}"); do
+                imagedeps="${imagedeps} ${_imagerundep}"
+            done
+        done
 
         imagedeps="$(echo "${imagedeps}" | xargs -n1 | sort -u | xargs)"
 
