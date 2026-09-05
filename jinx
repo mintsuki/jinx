@@ -1698,6 +1698,30 @@ do_host_build_if_needed() {
     fi
 }
 
+pkg_previously_built() {
+    # Has package $1 ever been built into directory $2 for arch $3? A bare
+    # '$1-*_*' glob would also match packages merely prefixed with '$1-', so
+    # require what precedes the revision to be a version, which has no '-'.
+    local pkg="$1"
+    local dir="$2"
+    local arch="$3"
+
+    local file
+    for file in "${dir}/${pkg}"-*_*."${arch}".xbps; do
+        [[ -f ${file} ]] || continue
+
+        local name_version="${file##*/}"
+        local name_version="${name_version%".${arch}.xbps"}"
+        local name_version="${name_version%_*}"
+
+        if [[ ${name_version#"${pkg}-"} != *-* ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 do_update() {
     local with_build="$1"
     shift
@@ -1712,7 +1736,7 @@ do_update() {
     fi
 
     # Not previously built? Skip unless caller asked to build missing ones.
-    if [[ ${with_build} != yes ]] && ! compgen -G "${build_dir}/pkgs/${name}-*_*.${JINX_ARCH}.xbps" >/dev/null; then
+    if [[ ${with_build} != yes ]] && ! pkg_previously_built "${name}" "${build_dir}/pkgs" "${JINX_ARCH}"; then
         return 0
     fi
 
@@ -1745,7 +1769,7 @@ do_host_update() {
     fi
 
     # Not previously built? Skip unless caller asked to build missing ones.
-    if [[ ${with_build} != yes ]] && ! compgen -G "${build_dir}/host-pkgs/${name}-*_*.${host_arch}.xbps" >/dev/null; then
+    if [[ ${with_build} != yes ]] && ! pkg_previously_built "${name}" "${build_dir}/host-pkgs" "${host_arch}"; then
         return 0
     fi
 
