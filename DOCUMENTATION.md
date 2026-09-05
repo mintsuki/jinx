@@ -48,6 +48,7 @@ Links to different points in this documentation:
 		- [`hostdeps`](<#hostdeps>)
 		- [`hostrundeps`](<#hostrundeps>)
 		- [`imagedeps`](<#imagedeps>)
+		- [`imagerundeps`](<#imagerundeps>)
 		- [`allow_network`](<#allow_network>)
 		- [`cross_compile`](<#cross_compile>)
 		- [`bootstrap_pkg`](<#bootstrap_pkg>)
@@ -234,7 +235,7 @@ This produces a `.jinx-parameters` file in the build directory containing at min
 jinx update [-b] [package(s)...]
 ```
 
-Rebuilds the specified package(s) when they are **out of date**. A package is considered out of date when an XBPS file matching its `name` already exists in `pkgs/` but the filename does not match the recipe's current `version_revision`. Packages that have never been built are *skipped* by default - `update` is for keeping an existing set of built packages in sync with the recipes, not for introducing new ones.
+Rebuilds the specified package(s) when they are **out of date**. A package is considered out of date when `pkgs/` already holds an XBPS file for that exact `name` but the filename does not match the recipe's current `version_revision`. The name has to match in full: a built `foo-bar` does not make `foo` count as previously built. Packages that have never been built are *skipped* by default - `update` is for keeping an existing set of built packages in sync with the recipes, not for introducing new ones.
 
 The `-b` flag (mnemonic: "build") restores the older behavior: never-built packages are also built. Transitive dependencies needed to satisfy an outdated target are always built regardless of `-b`, since the target's build would otherwise fail.
 
@@ -407,7 +408,7 @@ The base container image is a `minbase` Debian `sid` snapshot with `locales` and
 
 Several environment variables can be set when invoking `jinx` to alter its behaviour:
 
-- `JINX_PARALLELISM`: Override the `parallelism` value passed to recipes. By default, Jinx auto-tunes this from the number of online CPUs and available RAM (roughly one job per ~2 GiB of RAM, capped by `nproc`).
+- `JINX_PARALLELISM`: Override the `parallelism` value passed to recipes. By default, Jinx auto-tunes this before every container step from the number of online CPUs and the RAM available at that moment (roughly one job per ~2 GiB available, capped by `nproc`), so a step starting while the machine is under memory pressure gets fewer jobs.
 - `JINX_CACHE_DIR`: Override the cache location. Defaults to `<source-dir>/.jinx-cache`. The build lock lives here, so runs sharing a cache directory are serialised against each other.
 - `JINX_CLEAN_WORKDIRS`: When set to `yes`, Jinx removes the recipe's build directory and downloaded sources after a successful package build, on a per-recipe basis (a recipe may opt out via [`clean_workdirs=no`](<#clean_workdirs>)).
 - `JINX_NATIVE_MODE`: When set to `yes`, Jinx mounts the in-progress sysroot directly as the container root for every recipe that leaves [`cross_compile`](<#cross_compile>) unset. This is intended for native (host arch == target arch) builds. Such a recipe gets no Debian image (so its [`imagedeps`](<#imagedeps>) do not apply), no host packages under `/usr/local` (its [`hostdeps`](<#hostdeps>) are still built, just not installed), and no `/sysroot` - everything it uses comes from the sysroot that *is* its container root. Host recipes and the source-preparation stages always take the regular cross flow regardless of this variable.
@@ -861,6 +862,27 @@ imagedeps="build-essential patchelf"
 # ...
 ```
 
+#### `imagerundeps`
+
+- **Optional**.
+- Space-separated list of Debian packages.
+- Host recipes only.
+
+The image-level counterpart of [`hostrundeps`](<#hostrundeps>): Debian packages this host package needs when it is *used*, rather than when it is built. Any recipe that pulls this host recipe in through [`hostdeps`](<#hostdeps>)/[`hostrundeps`](<#hostrundeps>), directly or transitively, has them appended to its own [`imagedeps`](<#imagedeps>) as its container image is assembled, so consumers do not have to know what the tool needs to run. Listing a package here does **not** put it in this recipe's own build image - that is what `imagedeps` is for.
+
+The appended packages are sorted and de-duplicated together with the consuming recipe's own `imagedeps`, so they take part in the image-set caching exactly like a directly-listed one. As with `imagedeps`, a recipe running under [`JINX_NATIVE_MODE=yes`](<#environment-variables>) that leaves [`cross_compile`](<#cross_compile>) unset gets no image at all, so `imagerundeps` do not apply there either.
+
+Example:
+
+```sh
+#! /bin/sh
+# host-recipes/rust/recipe
+
+# ...
+imagerundeps="libssl3t64" # the host rustc loads Debian's libssl at run time, so its consumers need it too
+# ...
+```
+
 #### `allow_network`
 
 - **Optional**.
@@ -1118,7 +1140,7 @@ In addition to the recipe's own [Properties](<#properties>) and anything the [Ji
 | `prefix` | Install prefix. `/usr` for normal recipes, `/usr/local` for host recipes. |
 | `sysroot` | Path to the populated sysroot in the container (`/sysroot`). Not present under [`JINX_NATIVE_MODE=yes`](<#environment-variables>) for a recipe that leaves [`cross_compile`](<#cross_compile>) unset, since there the container root *is* the sysroot. |
 | `dest_dir` | Where `package()` should `make install` to. Jinx packs this into an XBPS file: `pkgs/` for normal recipes, `host-pkgs/` for host recipes. |
-| `parallelism` | Suggested `make -j` value. From `JINX_PARALLELISM` or auto-detected. |
+| `parallelism` | Suggested `make -j` value. From `JINX_PARALLELISM`, or auto-tuned per step from the CPU count and the RAM available when the step starts. |
 | `base_dir` | The project's source directory. `/base_dir` inside the container; absolute host path outside. |
 | `build_dir` | The build directory. `/build_dir` inside the container; absolute host path outside. |
 | `JINX_ARCH` | Target architecture (`x86_64`, `riscv64`, ...). |
@@ -1131,7 +1153,7 @@ Located in `host-recipes/`, host recipes describe packages that should be built 
 
 Host recipes can declare their own sources inline (`tarball_url`, `zip_url`, `git_url`, `source_dir`, `early_prepare()`, `prepare()`, `source_*` properties, etc.), exactly the same way normal recipes do. Alternatively, they can pull sources from another recipe via [`from_source`](<#from_source>) (resolving against `recipes/`) or [`from_host_source`](<#from_host_source>) (resolving against `host-recipes/`, useful when several host recipes need to share a single source tree).
 
-A host recipe may also list [`deps`](<#deps>)/[`builddeps`](<#builddeps>). Those name normal recipes, are built for the target, and are installed into the `/sysroot` its container sees - this is how a cross-toolchain gets the target headers and libraries it is built against. They are *not* recorded as dependencies of the resulting host package; only [`hostrundeps`](<#hostrundeps>) are. [`binpkgdeps`](<#binpkgdeps>) is a normal-recipe property and has no effect in `host-recipes/`, while [`conf_files`](<#conf_files>) behaves identically for both.
+A host recipe may also list [`deps`](<#deps>)/[`builddeps`](<#builddeps>). Those name normal recipes, are built for the target, and are installed into the `/sysroot` its container sees - this is how a cross-toolchain gets the target headers and libraries it is built against. They are *not* recorded as dependencies of the resulting host package; only [`hostrundeps`](<#hostrundeps>) are, with [`imagerundeps`](<#imagerundeps>) doing the equivalent for the Debian packages a consumer's container image needs in order to run this one. [`binpkgdeps`](<#binpkgdeps>) is a normal-recipe property and has no effect in `host-recipes/`, while [`conf_files`](<#conf_files>) behaves identically for both.
 
 Host recipes are built into XBPS packages just like normal recipes, kept in `host-pkgs/` with its own XBPS repository index. The package filename is `<name>-<version>_<revision>.<host-arch>.xbps`, where `<host-arch>` is the build machine's architecture (`uname -m`) - host tools are native to the build machine, so this is independent of `JINX_ARCH` (the target arch). When a recipe needs host dependencies, Jinx `xbps-install`s them on the fly into the build container's `/usr/local` during container preparation, exactly the way normal `deps` are installed into the sysroot; `hostrundeps` are recorded as the host package's XBPS run-dependencies. Host recipes get a `.host-revision` marker that is the exact counterpart of a normal recipe's `.revision` (it records the `revision` the source tree was last prepared for and forces a source re-clean when the recipe's `revision` changes - the `version` axis is handled separately by `.version` - gated off for `from_source`/`from_host_source` consumers in the same way). Consequently a `version`/`revision` bump on a host recipe triggers a rebuild, and [`update`](<#update>)/[`dry-run`](<#dry-run>)/[`build`](<#build>)/[`rebuild`](<#rebuild>) treat host recipes by their XBPS file identically to normal recipes.
 
