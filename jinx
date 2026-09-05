@@ -208,13 +208,20 @@ case "$1" in
         ;;
 esac
 
-if [[ -z ${JINX_PARALLELISM} ]]; then
-    max_threads_by_mem=$(( ((($(LC_ALL=C free | awk '/^Mem:/{print $2}') + 1048575) / 1048576) + 1) / 2 ))
-    parallelism="$(nproc 2>/dev/null || echo 1)"
-    parallelism=$(( parallelism < max_threads_by_mem ? parallelism : max_threads_by_mem ))
-else
-    parallelism="$JINX_PARALLELISM"
-fi
+compute_parallelism() {
+    if [[ -n ${JINX_PARALLELISM} ]]; then
+        echo "${JINX_PARALLELISM}"
+        return
+    fi
+
+    local max_threads_by_mem=$(( ((($(LC_ALL=C free | awk '/^Mem:/{print $7}') + 1048575) / 1048576) + 1) / 2 ))
+    local threads="$(nproc 2>/dev/null || echo 1)"
+    local threads=$(( threads < max_threads_by_mem ? threads : max_threads_by_mem ))
+
+    echo $(( threads > 0 ? threads : 1 ))
+}
+
+parallelism="$(compute_parallelism)"
 
 # Architecture tag for host packages. Host recipes build native tools that run
 # on the build machine, so they are keyed on the build host's arch, independent
@@ -785,6 +792,9 @@ run_in_container() {
     fi
 
     local arg
+
+    # Recomputed per step so the memory cap tracks the RAM free right now.
+    local parallelism="$(compute_parallelism)"
 
     unshare --user --map-root-user --mount --pid --fork ${unshare_net_flag} -- "$BASH" -c "
         set -e
