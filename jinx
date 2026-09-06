@@ -2540,7 +2540,10 @@ done
 EOF
     chmod 0755 "${JINX_CACHE_DIR}/bin/ar"
 
-    # Install debootstrap
+    # Install debootstrap. Upstream ships the install step as a Makefile
+    # target, but it is only a few copies plus a @VERSION@ substitution, so do
+    # it inline and keep make out of the prerequisites. The version is taken
+    # from debian/changelog exactly the way that Makefile takes it.
     tracked_subshell '
         cd "${JINX_CACHE_DIR}"
         wget -O debootstrap.tar.gz https://salsa.debian.org/installer-team/debootstrap/-/archive/${debootstrap_version}/debootstrap-${debootstrap_version}.tar.gz
@@ -2548,11 +2551,20 @@ EOF
             die "Jinx: Failed to verify debootstrap tarball"
         fi
         tar -zxf debootstrap.tar.gz
-        make -C debootstrap-${debootstrap_version} DESTDIR="$(pwd -P)/debootstrap" install
-        force_remove debootstrap.tar.gz debootstrap-${debootstrap_version}
-        sed "s/HOST_ARCH=[^;#]*/HOST_ARCH=${DEBOOTSTRAP_ARCH}/g;s|DEBOOTSTRAP_DIR=/usr/share/debootstrap|DEBOOTSTRAP_DIR=\"$(pwd -P)/debootstrap/usr/share/debootstrap\"|g" debootstrap/usr/sbin/debootstrap >debootstrap.sed
-        mv debootstrap.sed debootstrap/usr/sbin/debootstrap
-        chmod +x debootstrap/usr/sbin/debootstrap
+
+        local _ds_src="debootstrap-${debootstrap_version}"
+        local _ds_share="debootstrap/usr/share/debootstrap"
+        local _ds_ver="$(sed "s/.*(\(.*\)).*/\1/; q" "${_ds_src}/debian/changelog")"
+
+        mkdir -p "${_ds_share}/scripts" debootstrap/usr/sbin
+        cp -a "${_ds_src}"/scripts/* "${_ds_share}/scripts/"
+        cp "${_ds_src}/functions" "${_ds_share}/functions"
+        chmod 0644 "${_ds_share}/functions"
+
+        sed "s/@VERSION@/${_ds_ver}/g;s/HOST_ARCH=[^;#]*/HOST_ARCH=${DEBOOTSTRAP_ARCH}/g;s|DEBOOTSTRAP_DIR=/usr/share/debootstrap|DEBOOTSTRAP_DIR=\"$(pwd -P)/debootstrap/usr/share/debootstrap\"|g" "${_ds_src}/debootstrap" >debootstrap/usr/sbin/debootstrap
+        chmod 0755 debootstrap/usr/sbin/debootstrap
+
+        force_remove debootstrap.tar.gz "${_ds_src}"
     '
 
     mkdir -p "$JINX_CACHE_DIR/sets/.image/var/cache/apt/archives"
