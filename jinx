@@ -1028,6 +1028,9 @@ local imagedeps="${source_imagedeps}"
 local hostdeps="${source_hostdeps}"
 local deps="${source_deps}"
 local allow_network="${source_allow_network}"
+local builddeps=
+local hostrundeps=
+local binpkgdeps=
 EOF
 }
 
