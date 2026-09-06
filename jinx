@@ -2648,7 +2648,21 @@ first_use() {
 
 redo_first_use() {
     echo "* purging old Jinx cache..."
-    force_remove "$JINX_CACHE_DIR"
+
+    # Everything except the lock file: it is held open right now, and removing
+    # it drops the mutual exclusion for the rest of this run and leaves the
+    # next run - possibly a 'jinx install' as root - to recreate it.
+    local -a _stale=()
+    local _entry
+    for _entry in "${JINX_CACHE_DIR}"/* "${JINX_CACHE_DIR}"/.[!.]*; do
+        [[ -e ${_entry} || -L ${_entry} ]] || continue
+        [[ ${_entry} == "${JINX_CACHE_DIR}/jinx.lock" ]] && continue
+        _stale+=("${_entry}")
+    done
+    if (( ${#_stale[@]} > 0 )); then
+        force_remove "${_stale[@]}"
+    fi
+
     first_use
 }
 
