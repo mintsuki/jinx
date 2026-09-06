@@ -18,13 +18,15 @@ An example OS using Jinx is [Gloire](https://codeberg.org/Ironclad/Gloire).
 - GNU make
 - grep
 - gzip
+- perl (needed by `debootstrap`)
 - sed
 - tar
 - wget
 - zstd
-- coreutils or equivalent (for `sha256sum`/`sha256`)
+- binutils or equivalent (for `ar`, needed by `debootstrap`)
+- coreutils or equivalent (for `sha256sum`/`sha256` and `chroot`)
 - procps or equivalent (for `free`)
-- util-linux or equivalent (for `unshare` and `flock`)
+- util-linux or equivalent (for `unshare`, `flock` and `mount`)
 
 ### Documentation
 

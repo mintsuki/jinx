@@ -75,13 +75,17 @@ Ensure the following prerequisites have been acquired:
 - GNU `make`.
 - `grep`.
 - `gzip`.
+- `perl`.
 - `sed`.
 - `tar`.
 - `wget`.
 - `zstd`.
-- `sha256sum` (or `sha256`) from a `coreutils` package.
-- `free` from a `procps` package.
-- `unshare` and `flock` from a `util-linux` package.
+- `ar` from a `binutils` package, or equivalent.
+- `sha256sum` (or `sha256`) and `chroot` from a `coreutils` package, or equivalent.
+- `free` from a `procps` package, or equivalent.
+- `unshare`, `flock` and `mount` from a `util-linux` package, or equivalent.
+
+`perl` and `ar` are not used by Jinx itself: they are what the `debootstrap` Jinx builds during its first run needs in order to resolve and unpack the `.deb`s of the base container image.
 
 >[!warning]
 >It is ***imperative*** that jinx be run under Linux, as the container environment relies on non-POSIX Linux features (user namespaces, mount namespaces, `chroot`). You ***will*** run into issues on other systems.
