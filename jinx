@@ -2336,6 +2336,17 @@ cmd_revbump() {
     fi
 }
 
+pkg_file_list() {
+    # The paths the built package $1 contains, minus its metadata entries.
+    # pipefail matters here: the trailing 'grep || true' always succeeds, so
+    # without it a failed decompression would read as an empty package and
+    # quietly turn the caller's conflict check into a no-op.
+    local -
+    set -o pipefail
+
+    zstdcat "$1" | tar -tf - | ( grep -v "${files_to_ignore}" || true )
+}
+
 cmd_install() {
     local force_install=""
     if [[ ${1-} == "-f" ]]; then
@@ -2400,7 +2411,7 @@ cmd_install() {
         XBPS_TARGET_ARCH="${JINX_ARCH}" \
             xbps-install -y $force_install -r "${sysroot}" -R "${build_dir}"/pkgs ${pkg} >/dev/null 2>&1
 
-        zstdcat "${build_dir}"/pkgs/${name}-${version}_${revision}.${JINX_ARCH}.xbps | tar -tf - | ( grep -v "${files_to_ignore}" || true ) >>"${all_files}"
+        pkg_file_list "${build_dir}/pkgs/${name}-${version}_${revision}.${JINX_ARCH}.xbps" >>"${all_files}"
         '
     done
 
@@ -2431,7 +2442,7 @@ cmd_install() {
                     local version=$(eval "$(source_source_recipe "${from_source}" "${_from_source_dir}")" && echo "$version")
                 fi
 
-                if zstdcat "${build_dir}"/pkgs/${name}-${version}_${revision}.${JINX_ARCH}.xbps | tar -tf - | ( grep -v "${files_to_ignore}" || true ) | grep -q "${elem}"; then
+                if pkg_file_list "${build_dir}/pkgs/${name}-${version}_${revision}.${JINX_ARCH}.xbps" | grep -q "${elem}"; then
                     printf " ${pkg}"
                 fi
                 '
