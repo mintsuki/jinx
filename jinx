@@ -1316,6 +1316,31 @@ do_package() {
     cd "${base_dir}"
 }
 
+source_is_pinned() {
+    # Does any recipe sharing source $1 (rooted at $2) keep its build directory?
+    # Such a directory was configured out of tree and still names the source as
+    # srcdir, so reaping it would leave the tree unusable. Only a recipe assigning
+    # clean_workdirs keeps one, which is what grep narrows to.
+    local _src="$1"
+    local _root="$2"
+
+    local _rec _id
+    for _rec in $(grep -rl 'clean_workdirs' --include=recipe \
+                       "${base_dir}"/recipes "${base_dir}"/host-recipes || true); do
+        _id=$(
+            eval "$(include_recipe "${_rec%/recipe}")"
+            [[ ${clean_workdirs} == no ]] || exit 0
+            echo "${_sources_root}/${from_source:-${name}}"
+        )
+
+        if [[ ${_id} == "${_root}/${_src}" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 clean_sources() {
     force_remove "${base_dir}"/${_sources_root}/$1
     force_remove "${base_dir}"/${_sources_root}/$1-clean
@@ -1543,16 +1568,17 @@ do_host_pkg() {
         if [[ ${clean_workdirs} != no ]]; then
             force_remove "${build_dir}"/host-builds/$1
 
+            # Only the recipe that owns a source may reap it; a from_source
+            # recipe borrows a tree the owner and other borrowers still need.
             if [[ -z ${from_source} ]]; then
                 eval "$(source_source_recipe "$1" host-recipes)"
-            else
-                eval "$(source_source_recipe "${from_source}" "${_from_source_dir}")"
-            fi
 
-            eval "$(get_real_source_dir)"
+                eval "$(get_real_source_dir)"
 
-            if [[ ${is_sourceless_package} != true && ${is_local_package} != true ]]; then
-                clean_sources "${name}"
+                if [[ ${is_sourceless_package} != true && ${is_local_package} != true ]] \
+                   && ! source_is_pinned "${name}" "${_sources_root}"; then
+                    clean_sources "${name}"
+                fi
             fi
         fi
     fi
@@ -1656,16 +1682,17 @@ do_pkg() {
         if [[ ${clean_workdirs} != no ]]; then
             force_remove "${build_dir}"/builds/$1
 
+            # Only the recipe that owns a source may reap it; a from_source
+            # recipe borrows a tree the owner and other borrowers still need.
             if [[ -z ${from_source} ]]; then
                 eval "$(source_source_recipe "$1" recipes)"
-            else
-                eval "$(source_source_recipe "${from_source}" "${_from_source_dir}")"
-            fi
 
-            eval "$(get_real_source_dir)"
+                eval "$(get_real_source_dir)"
 
-            if [[ ${is_sourceless_package} != true && ${is_local_package} != true ]]; then
-                clean_sources "${name}"
+                if [[ ${is_sourceless_package} != true && ${is_local_package} != true ]] \
+                   && ! source_is_pinned "${name}" "${_sources_root}"; then
+                    clean_sources "${name}"
+                fi
             fi
         fi
     fi
