@@ -280,7 +280,13 @@ if [[ ${in_container} == false ]]; then
         dry-run|version|--version|help|--help|init)
             ;;
         *)
-            exec 9>"${JINX_CACHE_DIR}/jinx.lock"
+            # flock needs no write access, so hold the lock on a read-only
+            # descriptor: a lock file left behind by a run as root ('install'
+            # is allowed to be one) still works for every later run.
+            if [[ ! -e "${JINX_CACHE_DIR}/jinx.lock" ]]; then
+                : >"${JINX_CACHE_DIR}/jinx.lock"
+            fi
+            exec 9<"${JINX_CACHE_DIR}/jinx.lock"
             if ! flock -n 9; then
                 die "$0: another jinx is already running in this build directory.
   lock: ${JINX_CACHE_DIR}/jinx.lock
