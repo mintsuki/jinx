@@ -15,7 +15,6 @@ An example OS using Jinx is [Gloire](https://codeberg.org/Ironclad/Gloire).
 - awk
 - findutils (for `find` and `xargs`)
 - git
-- GNU make
 - grep
 - gzip
 - perl (needed by `debootstrap`)
@@ -23,7 +22,6 @@ An example OS using Jinx is [Gloire](https://codeberg.org/Ironclad/Gloire).
 - tar
 - wget
 - zstd
-- binutils or equivalent (for `ar`, needed by `debootstrap`)
 - coreutils or equivalent (for `sha256sum`/`sha256` and `chroot`)
 - procps or equivalent (for `free`)
 - util-linux or equivalent (for `unshare`, `flock` and `mount`)
