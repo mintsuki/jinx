@@ -2490,11 +2490,10 @@ reinit_container() {
         ppc64le) local DEBOOTSTRAP_ARCH=ppc64el ;;
     esac
 
-    # debootstrap unpacks .debs with 'ar' (or with dpkg-deb, which it prefers
-    # when one is installed), and supports no other extractor. Ship a stand-in
-    # for the two flags it actually uses rather than making binutils a
-    # prerequisite. Like Jinx's own xbps and debootstrap it goes ahead of the
-    # host's PATH, so the ar debootstrap picks up is always this one.
+    # debootstrap only knows two extractors, 'ar' and dpkg-deb. Ship a stand-in
+    # for the two ar flags it uses instead of requiring binutils, ahead of the
+    # host's PATH like Jinx's own xbps and debootstrap, and pin --extractor=ar
+    # below so no host bootstraps through a different one.
     mkdir -p "${JINX_CACHE_DIR}/bin"
     cat <<'EOF' >"${JINX_CACHE_DIR}/bin/ar"
 #! /bin/sh
@@ -2575,7 +2574,7 @@ EOF
         mount --bind '${apt_cache}' '$JINX_CACHE_DIR/sets/.image/var/cache/apt/archives'
 
         LD_PRELOAD='$JINX_CACHE_DIR/sets/.image/nochown.so' debootstrap \
-            --foreign --variant=minbase sid '$JINX_CACHE_DIR/sets/.image' https://snapshot.debian.org/archive/debian/${JINX_DEBIAN_SNAPSHOT}/
+            --foreign --variant=minbase --extractor=ar sid '$JINX_CACHE_DIR/sets/.image' https://snapshot.debian.org/archive/debian/${JINX_DEBIAN_SNAPSHOT}/
     "
 
     local dir
