@@ -268,7 +268,7 @@ if [[ ${in_container} == false ]]; then
     mkdir -p "$JINX_CACHE_DIR"
     JINX_CACHE_DIR="$(cd "$JINX_CACHE_DIR" && pwd -P)"
 
-    export PATH="${JINX_CACHE_DIR}/xbps/bin:${JINX_CACHE_DIR}/debootstrap/usr/sbin:${PATH}:/usr/sbin:/sbin:${JINX_CACHE_DIR}/bin"
+    export PATH="${JINX_CACHE_DIR}/bin:${JINX_CACHE_DIR}/xbps/bin:${JINX_CACHE_DIR}/debootstrap/usr/sbin:${PATH}:/usr/sbin:/sbin"
     if [[ -n ${LD_LIBRARY_PATH} ]]; then
         LD_LIBRARY_PATH=":${LD_LIBRARY_PATH}"
     fi
@@ -2490,11 +2490,11 @@ reinit_container() {
         ppc64le) local DEBOOTSTRAP_ARCH=ppc64el ;;
     esac
 
-    # debootstrap unpacks .debs with 'ar' (or with dpkg-deb, when one happens
-    # to be installed), and supports no other extractor. Ship a stand-in for
-    # the two flags it actually uses rather than making binutils a
-    # prerequisite; it sits last in PATH, so a real ar still wins where there
-    # is one.
+    # debootstrap unpacks .debs with 'ar' (or with dpkg-deb, which it prefers
+    # when one is installed), and supports no other extractor. Ship a stand-in
+    # for the two flags it actually uses rather than making binutils a
+    # prerequisite. Like Jinx's own xbps and debootstrap it goes ahead of the
+    # host's PATH, so the ar debootstrap picks up is always this one.
     mkdir -p "${JINX_CACHE_DIR}/bin"
     cat <<'EOF' >"${JINX_CACHE_DIR}/bin/ar"
 #! /bin/sh
