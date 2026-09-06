@@ -498,7 +498,7 @@ topo_sort() {
     local _node _deps
     while IFS=: read -r _node _deps; do
         [[ -z $_node ]] && continue
-        # first occurrence wins (matches awk's previous exit-on-first-match)
+        # first occurrence wins
         [[ -n ${_graph[$_node]+x} ]] || _graph[$_node]=$_deps
     done <<<"$1"
 
@@ -2340,8 +2340,9 @@ cmd_revbump() {
     # Bump the revision of every recipe that depends, directly or
     # transitively, on the given package(s). Targets and dependents may be
     # normal recipes or host recipes (selected with the 'host:' prefix).
-    # 'deps'/'builddeps' resolve in recipes/, 'hostdeps'/'hostrundeps' in
-    # host-recipes/, so the graph spans both namespaces.
+    # 'deps'/'builddeps' and 'source_deps' resolve in recipes/,
+    # 'hostdeps'/'hostrundeps' and 'source_hostdeps' in host-recipes/, so the
+    # graph spans both namespaces.
     if [[ -z ${1-} ]]; then
         die "$0: revbump requires at least one package name"
     fi

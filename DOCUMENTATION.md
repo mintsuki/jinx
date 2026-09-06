@@ -87,7 +87,7 @@ Ensure the following prerequisites have been acquired:
 `perl` and `xzcat` are not used by Jinx itself: they are what the `debootstrap` Jinx installs on its first run needs in order to resolve and decompress the `.deb`s of the base container image. It unpacks them with `ar`, but Jinx ships a stand-in for the two flags it uses and pins `debootstrap` to that, so `binutils` is not needed.
 
 >[!warning]
->It is ***imperative*** that jinx be run under Linux, as the container environment relies on non-POSIX Linux features (user namespaces, mount namespaces, `chroot`). You ***will*** run into issues on other systems.
+>It is ***imperative*** that Jinx be run under Linux, as the container environment relies on non-POSIX Linux features (user namespaces, mount namespaces, `chroot`). You ***will*** run into issues on other systems.
 
 Download the `jinx` executable script from https://github.com/Mintsuki/Jinx. Ensure that it is marked as executable with `chmod +x jinx`. Optionally, install it system-wide with `make install` (it accepts the standard `PREFIX` and `DESTDIR` variables). Finally, verify that it is functional with `jinx help` to display the help output.
 
@@ -240,7 +240,7 @@ jinx update [-b] [package(s)...]
 
 Rebuilds the specified package(s) when they are **out of date**. A package is considered out of date when `pkgs/` already holds an XBPS file for that exact `name` but the filename does not match the recipe's current `version_revision`. The name has to match in full: a built `foo-bar` does not make `foo` count as previously built. Packages that have never been built are *skipped* by default - `update` is for keeping an existing set of built packages in sync with the recipes, not for introducing new ones.
 
-The `-b` flag (mnemonic: "build") restores the older behavior: never-built packages are also built. Transitive dependencies needed to satisfy an outdated target are always built regardless of `-b`, since the target's build would otherwise fail.
+The `-b` flag (mnemonic: "build") lifts that restriction: never-built packages are built too. Transitive dependencies needed to satisfy an outdated target are always built regardless of `-b`, since the target's build would otherwise fail.
 
 If invoked with no recipe arguments (other than `-b`), behaves as `update [-b] '*'`. Accepts the `host:` prefix (e.g. `jinx update 'host:*'`) to update host recipes, which are tracked by their own `host-pkgs/<name>-<version>_<revision>.<host-arch>.xbps` file exactly like normal recipes; the default `'*'` covers normal recipes only (host recipes are still pulled in transitively as host dependencies).
 
@@ -256,7 +256,7 @@ Forces a rebuild of the specified package(s) by removing the build directory fir
 
 #### `revbump`
 
-Bumps the [`revision`](<#revision>) of every recipe that depends, directly or transitively, on the given package(s), so that a subsequent [`update`](<#update>) rebuilds them. Accepts globs and the `host:` prefix like the other package commands. The dependency graph spans both namespaces (`deps`/`builddeps` resolve in `recipes/`, `hostdeps`/`hostrundeps` in `host-recipes/`), so a single `revbump` reaches dependents in both `recipes/` and `host-recipes/` regardless of whether the target is a normal or a host recipe.
+Bumps the [`revision`](<#revision>) of every recipe that depends, directly or transitively, on the given package(s), so that a subsequent [`update`](<#update>) rebuilds them. Accepts globs and the `host:` prefix like the other package commands. The dependency graph spans both namespaces (`deps`/`builddeps` and `source_deps` resolve in `recipes/`, `hostdeps`/`hostrundeps` and `source_hostdeps` in `host-recipes/`), so a single `revbump` reaches dependents in both `recipes/` and `host-recipes/` regardless of whether the target is a normal or a host recipe. Preparing the source is part of building the package, which is why what the source step needs is an edge just like what the build itself needs; a recipe that borrows its source through [`from_source`](<#from_source>)/[`from_host_source`](<#from_host_source>) inherits the source recipe's [`source_*`](<#source_>) edges as its own.
 
 The given package(s) are treated as the changed input and are themselves left untouched - only their dependents are bumped. Recipe files are edited in place, preserving the existing indentation and quoting of the `revision=` line; a recipe that does not have exactly one literal `revision=` line is reported rather than guessed at, and a target with no dependents is a no-op.
 
@@ -294,7 +294,7 @@ The `-f` flag **forces** the installation, removing any pre-existing version of 
 
 Prints, on a single line space-separated, the topological order of packages that would be built to satisfy the given target(s) (or `'*'` - every normal recipe - if no target is given). Already-built packages are omitted.
 
-Normal and host packages share a **single** topological order and interleave wherever the dependencies demand it; host ones are printed with a `host:` prefix, and `host:` targets are accepted as roots. The graph spans both namespaces exactly like the builds do: `hostdeps`, `hostrundeps` and `source_hostdeps` are edges into `host-recipes/`, while `deps`, `builddeps` and `source_deps` are edges into `recipes/`, and either kind of recipe may have either kind of edge. [`binpkgdeps`](<#binpkgdeps>) are deliberately *not* edges here - not creating a build-order edge is the entire point of that property.
+Normal and host packages share a **single** topological order and interleave wherever the dependencies demand it; host ones are printed with a `host:` prefix, and `host:` targets are accepted as roots. The graph spans both namespaces exactly like the builds do: `hostdeps`, `hostrundeps` and `source_hostdeps` are edges into `host-recipes/`, while `deps`, `builddeps` and `source_deps` are edges into `recipes/`, and either kind of recipe may have either kind of edge. A recipe that borrows its source through [`from_source`](<#from_source>)/[`from_host_source`](<#from_host_source>) inherits the source recipe's `source_deps`/`source_hostdeps`, since those are what its own source preparation will pull in. [`binpkgdeps`](<#binpkgdeps>) are deliberately *not* edges here - not creating a build-order edge is the entire point of that property.
 
 `dry-run` builds nothing and writes nothing, and it is the one recipe command that does not take the build lock, so it can be run while another Jinx is busy in the same directory.
 
@@ -308,7 +308,9 @@ jinx download <package(s)>
 
 Fetches pre-built XBPS files for the specified package(s) and their transitive dependencies from the URL set in `JINX_REPO_URL` (Jinxfile variable). Only files that are missing from `pkgs/` are fetched; when everything the targets need is already there, Jinx says so and does nothing. Each downloaded file's SHA256 is verified against the repository's `index.plist`, and the local repo index is updated.
 
-Accepts the `host:` prefix to fetch host packages instead: `host:` targets are resolved against `host-recipes/`, fetched from `JINX_HOST_REPO_URL` (a separate Jinxfile variable), and dropped into `host-pkgs/` (and walked through `hostdeps`/`hostrundeps`/`source_hostdeps` rather than `deps`/`builddeps`/`source_deps`/`binpkgdeps`). Normal and `host:` targets can be mixed in a single invocation; each group uses its own repo URL and its own arch repodata. Note that the transitive walk stays within one namespace: `jinx download foo` does **not** automatically also fetch foo's `hostdeps` - run `jinx download 'host:*'` (or list specific host packages) to populate `host-pkgs/`.
+Nothing is built here, so the only edges walked are the ones XBPS itself records in a binary package - exactly what `xbps-create -D` was handed at build time: [`deps`](<#deps>) and [`binpkgdeps`](<#binpkgdeps>) for a normal recipe, [`hostrundeps`](<#hostrundeps>) for a host one. Build-time-only edges ([`builddeps`](<#builddeps>), [`hostdeps`](<#hostdeps>) and everything the source step needs) are not followed, since a downloaded package is never built from source. A dependency whose recipe sets [`bootstrap_pkg=yes`](<#bootstrap_pkg>) is skipped for the same reason - nothing that gets downloaded lists it in its dependencies - though naming one explicitly still fetches it.
+
+Accepts the `host:` prefix to fetch host packages instead: `host:` targets are resolved against `host-recipes/`, fetched from `JINX_HOST_REPO_URL` (a separate Jinxfile variable), and dropped into `host-pkgs/` (and walked through `hostrundeps` rather than `deps`/`binpkgdeps`). Normal and `host:` targets can be mixed in a single invocation; each group uses its own repo URL and its own arch repodata. Note that the transitive walk stays within one namespace: `jinx download foo` does **not** automatically also fetch foo's `hostdeps` - run `jinx download 'host:*'` (or list specific host packages) to populate `host-pkgs/`.
 
 The two URLs are kept separate so that target and host repos can coexist even in native builds (where `JINX_ARCH == $(uname -m)` and a single flat directory couldn't disambiguate `${arch}-repodata` files for the two namespaces). A typical layout is to publish `<repo-root>/target/` and `<repo-root>/host/` and point each variable at the appropriate subdirectory.
 
@@ -354,7 +356,7 @@ Topological sorting is required for correctness: before any recipe builds, every
 
 ### Reverse dependencies are *not* automatically rebuilt
 
-If you bump a library's `version` or `revision`, Jinx will rebuild that library, but **not** packages that depend on it. The dependents' XBPS files still exist with their original versions, so all the commands above (including `update '*'`) consider them already built. Jinx does not track which artifacts were built against which others. This applies symmetrically to host recipes (which are now ordinary XBPS packages too): bumping a host recipe does not rebuild its host-dependents.
+If you bump a library's `version` or `revision`, Jinx will rebuild that library, but **not** packages that depend on it. The dependents' XBPS files still exist with their original versions, so all the commands above (including `update '*'`) consider them already built. Jinx does not track which artifacts were built against which others. This applies symmetrically to host recipes, which are ordinary XBPS packages too: bumping a host recipe does not rebuild its host-dependents.
 
 When a library's ABI/soname changes and its dependents need recompiling, the conventional workflow (matching xbps-src and PKGBUILD-style systems) is:
 
@@ -366,7 +368,7 @@ If you only do step 1, dependents keep their existing XBPS files until you delet
 
 ## Jinxfile
 
-When building **any** recipe, Jinx sources the `Jinxfile` from the source directory. Variables and functions defined within this file will be visible to recipes, allowing the definition of default compiler flags, helper functions, and so on. The `Jinxfile` is sourced by bash, so any valid bash syntax is accepted (POSIX shell syntax is a subset, so older POSIX-style Jinxfiles continue to work unchanged).
+When building **any** recipe, Jinx sources the `Jinxfile` from the source directory. Variables and functions defined within this file will be visible to recipes, allowing the definition of default compiler flags, helper functions, and so on. The `Jinxfile` is sourced by bash, so any valid bash syntax is accepted (POSIX shell syntax is a subset, so a POSIX-style `Jinxfile` works just as well).
 
 A *bare minimum* `Jinxfile` is as follows:
 
@@ -429,7 +431,7 @@ In the Jinx build system, packages are specified by shell scripts called "recipe
 Defined within the recipe, there are a number of properties that determine how Jinx will handle building the recipe. The full list is below.
 
 >[!note]
->"Properties", as they are referred to in this documentation, are just shell variables that Jinx makes use of. Recipes are sourced by bash, so any valid bash syntax for defining these variables will be accepted (POSIX shell syntax is a subset and continues to work unchanged).
+>"Properties", as they are referred to in this documentation, are just shell variables that Jinx makes use of. Recipes are sourced by bash, so any valid bash syntax for defining these variables will be accepted (POSIX shell syntax is a subset, so a POSIX-style recipe works just as well).
 
 #### `version`
 
@@ -935,7 +937,7 @@ cross_compile=yes
 - **Optional**.
 - `yes`/`no`. Default: `no`.
 
-When `yes`, Jinx will not record this recipe as a runtime dependency of any other package, nor install it into a sysroot via `jinx install`. Use this for packages that exist purely to bootstrap the build environment (e.g. minimal early libc/runtime headers used to build the real toolchain) and that should not appear in a finished image.
+When `yes`, Jinx will not record this recipe as a runtime dependency of any other package, nor install it into a sysroot via `jinx install`. Use this for packages that exist purely to bootstrap the build environment (e.g. minimal early libc/runtime headers used to build the real toolchain) and that should not appear in a finished image. Because such a package is never recorded, [`download`](<#download>) does not fetch it as a dependency of anything either (naming it explicitly still does).
 
 Example:
 
@@ -954,6 +956,8 @@ bootstrap_pkg=yes
 - `yes`/`no`. Default: `yes` (i.e., follows `JINX_CLEAN_WORKDIRS`; this property is the per-recipe opt-out).
 
 Per-recipe override for the [`JINX_CLEAN_WORKDIRS`](<#environment-variables>) environment variable. Setting `clean_workdirs=no` keeps this recipe's build directory and downloaded sources around even when `JINX_CLEAN_WORKDIRS=yes` is set globally. Handy for recipes you iterate on frequently.
+
+A source tree shared through [`from_source`](<#from_source>)/[`from_host_source`](<#from_host_source>) is only ever reaped by the recipe that **owns** it: a consumer cleaning up after itself removes its own build directory but leaves the borrowed tree alone, because the owner and every other consumer still build against it. The owner in turn keeps the tree whenever *any* recipe sharing it sets `clean_workdirs=no` - that recipe's build directory outlives the cleanup and still points at the tree through [`source_dir`](<#provided-variables>), typically because it was configured out of tree, so reaping the source would leave it unusable.
 
 Example:
 
@@ -998,7 +1002,7 @@ Recipes may also provide `source_deps`, `source_imagedeps`, `source_hostdeps`, a
 1. **Within the recipe itself**, they fully replace `deps`/`imagedeps`/`hostdeps`/`allow_network` during the source-preparation stages ([`early_prepare()`](<#early_prepare>) and [`prepare()`](<#prepare>)).
 2. **When this recipe is referenced by another recipe via [`from_source`](<#from_source>)**, they fully replace the consuming recipe's corresponding properties (`deps`, `imagedeps`, `hostdeps`, `allow_network`) for the duration of the source-preparation stages.
 
-In both cases, the replacement is unconditional: an unset `source_*` means *empty* during source prep, not "inherit from the regular property". If you set any `source_*`, set every `source_*` you need.
+In both cases, the replacement is unconditional: an unset `source_*` means *empty* during source prep, not "inherit from the regular property". If you set any `source_*`, set every `source_*` you need. The properties that have no `source_*` counterpart are simply *off* there: a recipe's own [`builddeps`](<#builddeps>), [`hostrundeps`](<#hostrundeps>), [`binpkgdeps`](<#binpkgdeps>) and [`imagerundeps`](<#imagerundeps>) never reach the source container, so it holds exactly the `source_*` set and nothing else. (`source_hostdeps` still contribute their own `imagerundeps` to that container, exactly as `hostdeps` would in a build.)
 
 `source_imagedeps` covers all of source preparation, fetching included, and is the only way to add a package to that container: a recipe's plain `imagedeps` are not consulted there. `source_allow_network`, on the other hand, only governs the [`prepare()`](<#prepare>) stage: fetching and patching (and therefore [`early_prepare()`](<#early_prepare>), which runs with the fetch) always have the network enabled, since that is how sources are downloaded in the first place.
 
