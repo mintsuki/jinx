@@ -187,7 +187,7 @@ if [[ $script_dir == . || -z $script_dir ]]; then
     if [[ $0 == */* ]]; then
         script_dir=.
     else
-        script_dir="$(dirname "$(which "${script_name}")")"
+        script_dir="$(dirname "$(command -v "${script_name}")")"
     fi
 fi
 script_dir="$(cd "${script_dir}" && pwd -P)"
