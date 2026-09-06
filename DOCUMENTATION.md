@@ -871,9 +871,9 @@ imagedeps="build-essential patchelf"
 - Space-separated list of Debian packages.
 - Host recipes only.
 
-The image-level counterpart of [`hostrundeps`](<#hostrundeps>): Debian packages this host package needs when it is *used*, rather than when it is built. Any recipe that pulls this host recipe in through [`hostdeps`](<#hostdeps>)/[`hostrundeps`](<#hostrundeps>), directly or transitively, has them appended to its own [`imagedeps`](<#imagedeps>) as its container image is assembled, so consumers do not have to know what the tool needs to run. Listing a package here does **not** put it in this recipe's own build image - that is what `imagedeps` is for.
+The image-level counterpart of [`hostrundeps`](<#hostrundeps>): Debian packages this host package needs when it is *used*, rather than only when it is built. Like [`imagedeps`](<#imagedeps>), they are installed into this recipe's own build image - a host build routinely runs what it just built - but **additionally** any recipe that pulls this host recipe in through [`hostdeps`](<#hostdeps>)/[`hostrundeps`](<#hostrundeps>), directly or transitively, has them appended to its own `imagedeps` as its container image is assembled, so consumers do not have to know what the tool needs to run. Just as with `hostrundeps` and `hostdeps`, listing a package under `imagerundeps` makes also listing it under `imagedeps` redundant.
 
-The appended packages are sorted and de-duplicated together with the consuming recipe's own `imagedeps`, so they take part in the image-set caching exactly like a directly-listed one. As with `imagedeps`, a recipe running under [`JINX_NATIVE_MODE=yes`](<#environment-variables>) that leaves [`cross_compile`](<#cross_compile>) unset gets no image at all, so `imagerundeps` do not apply there either.
+The packages are sorted and de-duplicated together with the `imagedeps` of whichever recipe's image they end up in, so they take part in the image-set caching exactly like a directly-listed one. As with `imagedeps`, a recipe running under [`JINX_NATIVE_MODE=yes`](<#environment-variables>) that leaves [`cross_compile`](<#cross_compile>) unset gets no image at all, so `imagerundeps` do not apply there either.
 
 Example:
 

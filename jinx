@@ -727,6 +727,16 @@ prepare_container() {
         mkdir -p "${container_pkgs}"
 
         local _imagerundep
+        case "${recipe_dir}" in
+            # A host recipe's own imagerundeps go into its own build image too,
+            # mirroring how its own hostrundeps are installed into its own
+            # container: a host build routinely runs what it just built.
+            */host-recipes/*)
+                for _imagerundep in ${imagerundeps}; do
+                    imagedeps="${imagedeps} ${_imagerundep}"
+                done
+                ;;
+        esac
         for hostdep in "${!_hostdeps_collected[@]}"; do
             for _imagerundep in $(eval "$(include_recipe "${base_dir}/host-recipes/${hostdep}")" && echo "${imagerundeps}"); do
                 imagedeps="${imagedeps} ${_imagerundep}"
@@ -1046,6 +1056,7 @@ local deps="${source_deps}"
 local allow_network="${source_allow_network}"
 local builddeps=
 local hostrundeps=
+local imagerundeps=
 local binpkgdeps=
 EOF
 }
